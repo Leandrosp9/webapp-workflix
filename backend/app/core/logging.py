@@ -13,6 +13,13 @@ _EXTRA_FIELDS = (
     "http_path",
     "http_status",
     "validation_errors",
+    "worker_id",
+    "job_id",
+    "version_id",
+    "attempt",
+    "job_status",
+    "lease_owned",
+    "error_code",
 )
 
 

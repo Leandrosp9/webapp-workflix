@@ -13,12 +13,14 @@ flowchart LR
     Browser[React web client] -->|REST /api/v1| API[FastAPI application]
     API --> Redis[(Redis rate limits)]
     API --> Domain[Application services]
+    API --> Queue[(PostgreSQL durable jobs)]
+    Worker[Document worker replicas] --> Queue
     Domain --> DB[(PostgreSQL + pgvector)]
     Domain --> Storage[File storage interface]
     Domain --> AI[AI service interface]
     AI --> Gemini[Google Gemini]
     AI -. fallback .-> Groq[Groq]
-    Domain --> RAG[RAG pipeline]
+    Worker --> RAG[RAG pipeline]
     RAG --> DB
 ```
 
@@ -56,4 +58,4 @@ TanStack Query owns server state. Local component state owns transient interacti
 
 ## Deployment path
 
-The local topology uses three containers: static frontend, FastAPI backend, and PostgreSQL with pgvector. The staging overlay adds Redis and private S3-compatible MinIO storage, while AWS Secrets Manager is read before configuration validation. PDF uploads schedule an in-process background pipeline with persistent states and explicit retry: object read → PyMuPDF pages → page-aware chunks → Gemini embeddings → pgvector rows. The scheduler boundary is intentionally replaceable; move it to a durable queue/worker before multi-replica or high-volume workloads.
+The local topology separates the static frontend, FastAPI API, document worker, and PostgreSQL/pgvector. The staging overlay adds Redis and private S3-compatible MinIO storage, while AWS Secrets Manager is read before configuration validation. PDF uploads atomically persist an immutable version and a durable job. Any worker replica may claim it through PostgreSQL row locking and a renewable lease, then execute object read → PyMuPDF pages → page-aware chunks → Gemini embeddings → pgvector rows. Transient failures use bounded exponential retry; permanent and exhausted failures enter a dead-letter state that an ADMIN can explicitly requeue.

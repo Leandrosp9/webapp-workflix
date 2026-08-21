@@ -37,6 +37,7 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 - Authorized PDF upload/download with MIME, signature, and size validation.
 - Provider-neutral local/S3-compatible PDF storage with private tenant-scoped object keys.
 - Immutable PDF versions with checksums, page extraction, observable processing states, and ADMIN reprocessing.
+- Durable PostgreSQL document jobs with leased multi-worker claims, heartbeats, exponential retry, and dead-letter state.
 - Gemini cloud embeddings, 768-dimensional pgvector chunks, cosine retrieval, and HNSW indexing.
 - Employee questions over assigned PDFs with grounded answers and explicit document/page citations.
 - Employee home, catalog, player, assessment, correction, and result experiences.
@@ -51,12 +52,12 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 - Liveness and dependency-aware readiness endpoints.
 - SQLAlchemy 2.x asynchronous infrastructure and Alembic-only schema evolution.
 - PostgreSQL 17 with pgvector and health-gated container startup.
-- Multi-stage, health-checked Docker images and a three-service Compose topology.
+- Multi-stage, health-checked Docker images and separate API/worker runtime services.
 - Backend/frontend quality gates and Playwright browser journeys against Docker in GitHub Actions.
 
 ### Intentionally deferred
 
-- Durable external job queue/workers, OCR for image-only PDFs, and document acknowledgment evidence.
+- OCR for image-only PDFs and document acknowledgment evidence.
 - Learning paths, certificates, notifications, reports, and audit history.
 - Departments, positions, manager role, SSO, billing, and enterprise integrations.
 
@@ -76,7 +77,7 @@ The MVP includes:
 
 Tests inject fake providers and never spend a real Gemini request. `GEMINI_API_KEY` remains optional: PDF extraction finishes in `EXTRACTED` without it, while authoring and RAG return explicit configuration errors. When configured, `gemini-embedding-2` creates 768-dimensional document/query embeddings and the employee player exposes source-aware questions over the latest authorized `READY` version. Groq remains an architectural adapter/fallback seam for authoring, not a live embedding transport.
 
-PDF processing states are `UPLOADED`, `EXTRACTING`, `EXTRACTED`, `INDEXING`, `READY`, and `FAILED`. The current modular-monolith scheduler uses FastAPI background tasks and persistent state plus an ADMIN retry endpoint. A dedicated durable queue is the next operational step before high-volume or multi-replica processing.
+PDF processing states are `UPLOADED`, `EXTRACTING`, `EXTRACTED`, `INDEXING`, `READY`, and `FAILED`. Upload creates the version and its durable PostgreSQL job atomically. Independent workers claim jobs with `FOR UPDATE SKIP LOCKED`, renew bounded leases, retry transient storage/embedding failures with exponential backoff, and move permanent or exhausted failures to `DEAD_LETTER`. Processing remains idempotent and the ADMIN retry endpoint safely requeues completed or dead-lettered versions.
 
 ## Architecture
 
@@ -84,17 +85,19 @@ PDF processing states are `UPLOADED`, `EXTRACTING`, `EXTRACTED`, `INDEXING`, `RE
 flowchart LR
     Browser[React web client] -->|REST /api/v1| API[FastAPI application]
     API --> Services[Application services]
+    API --> Queue[(PostgreSQL job queue)]
+    Worker[Document worker replicas] --> Queue
+    Worker --> RAG[RAG pipeline]
     Services --> DB[(PostgreSQL + pgvector)]
     Services --> Storage[Local or S3-compatible object storage]
     API --> Redis[(Redis rate limits)]
     Services --> AI[AIService]
     AI --> Gemini[Gemini]
     AI -. explicit fallback .-> Groq[Groq]
-    Services --> RAG[RAG pipeline]
     RAG --> DB
 ```
 
-Workflix begins as a modular monolith. This keeps deployment and transactions simple for an early product while making domain boundaries explicit enough to extract document-processing workers later. Read the [architecture guide](docs/architecture.md) and [ADRs](docs/adr) for the reasoning behind each choice.
+Workflix begins as a modular monolith with a separately scalable document-worker process. This keeps domain transactions simple while isolating workload-heavy extraction and indexing from HTTP replicas. Read the [architecture guide](docs/architecture.md) and [ADRs](docs/adr) for the reasoning behind each choice.
 
 ## Tech Stack
 
@@ -145,7 +148,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The backend waits for PostgreSQL, runs `alembic upgrade head`, applies the idempotent demo seed, and then starts FastAPI. The frontend waits for a healthy backend before starting Nginx.
+The backend waits for PostgreSQL, runs `alembic upgrade head`, applies the idempotent demo seed, and then starts FastAPI. The document worker starts after the backend is healthy and consumes durable jobs from PostgreSQL. The frontend waits for a healthy backend before starting Nginx.
 
 If port `5173` is already in use, choose another host port without editing Compose:
 
@@ -204,7 +207,7 @@ On Windows, activate with `.venv\Scripts\Activate.ps1`.
 - application: `APP_ENV`, `APP_VERSION`, `DEMO_MODE`, `LOG_LEVEL`;
 - data: `DATABASE_URL`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`;
 - authentication: `JWT_SECRET`, access lifetime, and refresh lifetime;
-- AI/RAG: primary/fallback provider, Gemini/Groq keys, generation and embedding models, embedding dimensions, page cap, and retrieval limit;
+- AI/RAG: primary/fallback provider, Gemini/Groq keys, generation and embedding models, embedding dimensions, page cap, retrieval limit, worker polling, leases, heartbeats, attempts, and retry backoff;
 - files: local/S3 provider, bucket, endpoint, credentials, path style, encryption, and upload limit;
 - request protection: Redis URL and limits for login, refresh, and AI generation;
 - managed secrets: provider, secret identifier, region, and optional endpoint;
@@ -214,7 +217,7 @@ Never commit `.env` or use the included local credentials outside a development 
 
 ## Database
 
-The first migration enables `vector` and `pgcrypto`; the second owns the focused MVP schema; `20260821_0003` adds documents, immutable versions, extracted pages, vector chunks, and the HNSW cosine index. Production startup never calls `create_all()`.
+The first migration enables `vector` and `pgcrypto`; the second owns the focused MVP schema; `20260821_0003` adds document intelligence; and `20260821_0004` adds the durable processing queue. Production startup never calls `create_all()`.
 
 The initial relational model, ownership rules, and relationship diagram live in [docs/database.md](docs/database.md).
 
@@ -326,8 +329,10 @@ workflix/
 │   │   │   ├── embeddings.py
 │   │   │   ├── extractor.py
 │   │   │   ├── jobs.py
+│   │   │   ├── queue.py
 │   │   │   ├── providers/gemini.py
 │   │   │   └── retriever.py
+│   │   ├── worker.py
 │   │   ├── repositories/
 │   │   ├── schemas/
 │   │   ├── storage/
@@ -362,7 +367,7 @@ workflix/
 
 ### V2
 
-- Durable document queue/workers, OCR, and acknowledgment evidence.
+- OCR and acknowledgment evidence.
 - Learning paths, certificates, manager analytics, and richer reports.
 
 ### V3

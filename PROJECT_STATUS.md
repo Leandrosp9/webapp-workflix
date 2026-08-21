@@ -4,7 +4,7 @@ Last updated: 2026-08-21
 
 ## Current phase
 
-Document intelligence V1 — implemented and validated through extraction, indexing, retrieval, and cited answers.
+Document intelligence V1 — implemented and validated through durable processing, extraction, indexing, retrieval, and cited answers.
 
 ## Completed
 
@@ -18,18 +18,15 @@ Document intelligence V1 — implemented and validated through extraction, index
 - Gemini REST structured generation with mock-only tests and human review before persistence.
 - Idempotent NovaTech seed: six users, six trainings, six quizzes, assignments, and progress.
 - FastAPI foundation with validated settings, CORS, structured logging, request IDs, safe errors, OpenAPI, liveness, and readiness.
-- SQLAlchemy async infrastructure and two Alembic migrations.
+- SQLAlchemy async infrastructure and four Alembic migrations.
 - PyMuPDF page extraction with persistent states, checksum metadata, failure codes, and ADMIN retry.
 - Gemini embedding adapter, page-aware chunks, pgvector cosine retrieval, and HNSW index.
 - Tenant/assignment-scoped PDF questions with grounded answers and page/version citations.
+- Durable PostgreSQL job queue with atomic enqueue, leased multi-worker claims, heartbeat renewal, bounded exponential retry, dead-letter handling, and ADMIN requeue.
 - Health-gated Docker Compose topology for frontend, backend, and PostgreSQL/pgvector.
 - Hardened staging overlay with Redis rate limiting, private S3-compatible MinIO storage, and AWS Secrets Manager bootstrap.
 - Backend/frontend tests, linting, formatting, production build, and GitHub Actions CI with Playwright.
 - Automated employee, ADMIN, quiz/result, and 390×844 browser journeys against the real Docker stack.
-
-## In progress
-
-- Durable queue/worker extraction is the next reliability increment before multi-replica scale.
 
 ## Pending
 
@@ -65,19 +62,20 @@ For local quality checks, use the commands documented in `README.md`.
 
 Validated on 2026-08-21:
 
-- 34 backend tests passed;
+- 37 backend tests passed;
 - 1 frontend component/integration test passed;
 - Ruff, ESLint, and Prettier checks passed;
 - the frontend production build passed;
-- migrations through `20260821_0003` were applied to PostgreSQL;
+- migrations through `20260821_0004` were applied to PostgreSQL;
 - PostgreSQL extensions `vector` and `pgcrypto` were present;
-- frontend, backend, and PostgreSQL containers were healthy;
+- frontend, backend, document worker, and PostgreSQL containers were healthy;
 - the staging overlay started healthy with Redis and a private MinIO bucket;
 - the 11th login request from one IP returned `429` and the limiter key was verified in Redis;
 - PDF upload/download round-tripped byte-for-byte through MinIO under a tenant-scoped key;
 - real two-page PDFs were versioned and extracted, page/chunk rows were persisted, and the latest version reached `READY` with a fake cloud boundary;
 - the PostgreSQL repository returned one authorized page-7 vector result at cosine score `1.0000` and zero cross-tenant results; the smoke transaction was rolled back;
 - 4 Playwright browser journeys passed locally, including PDF version/extraction; the original 3 role/responsive journeys also passed against the hardened staging stack;
+- the PDF browser journey was consumed by the separate worker and completed from a persisted PostgreSQL job;
 - authentication and both role experiences were exercised through Nginx;
 - employee learning and quiz correction returned a passing result;
 - the mobile dashboard had no horizontal overflow after responsive correction.

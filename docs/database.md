@@ -25,6 +25,7 @@ erDiagram
     DOCUMENT ||--o{ DOCUMENT_VERSION : versions
     DOCUMENT_VERSION ||--o{ DOCUMENT_PAGE : extracts
     DOCUMENT_VERSION ||--o{ DOCUMENT_CHUNK : indexes
+    DOCUMENT_VERSION ||--o| DOCUMENT_PROCESSING_JOB : schedules
 ```
 
 ## Core entities
@@ -52,6 +53,7 @@ erDiagram
 - `document_versions`: immutable file metadata, checksum, private object key, monotonic version number, processing state, counters, and safe error code.
 - `document_pages`: one-based extracted page text retained for traceability.
 - `document_chunks`: page-aware text plus 768-dimensional embedding provider/model metadata.
+- `document_processing_jobs`: one durable job per version with claim lease, owner, attempt budget, retry availability, completion, and safe failure code.
 
 Only the newest version of a document is eligible for retrieval, and it must be `READY`. The HNSW index uses `vector_cosine_ops` with `m=16` and `ef_construction=64`. Learning paths, certificates, notifications, acknowledgments, and audit tables remain later scope.
 
@@ -64,4 +66,4 @@ Only the newest version of a document is eligible for retrieval, and it must be 
 - Store refresh tokens only as hashes.
 - Use a vector index only after corpus size and query plans justify its parameters.
 
-Migration `20260821_0001` enables PostgreSQL extensions. Migration `20260821_0002` creates the focused MVP schema. Migration `20260821_0003` adds document versions, pages, chunks, and the HNSW vector index.
+Migration `20260821_0001` enables PostgreSQL extensions. Migration `20260821_0002` creates the focused MVP schema. Migration `20260821_0003` adds document versions, pages, chunks, and the HNSW vector index. Migration `20260821_0004` adds durable document-processing jobs and claim indexes.

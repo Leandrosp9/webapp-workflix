@@ -25,6 +25,7 @@ All notable development changes are recorded here. This project follows the spir
 - Gemini `gemini-embedding-2` adapter with task-specific query/document prefixes.
 - 768-dimensional pgvector chunks, HNSW cosine index, latest-version retrieval, and tenant/assignment filters.
 - Employee document questions with grounded Gemini answers, page/version sources, and prompt-injection isolation.
+- Durable PostgreSQL document jobs, independent worker containers, leased claims, heartbeats, exponential retry, dead-letter handling, and atomic upload enqueue.
 
 - Product, architecture, database, security, and deployment documentation.
 - Architecture decision records for the frontend, backend, AI, multi-tenancy, and RAG foundations.

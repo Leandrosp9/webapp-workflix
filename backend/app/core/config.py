@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     rag_embedding_dimensions: int = Field(default=768, ge=768, le=768)
     rag_max_pdf_pages: int = Field(default=500, ge=1, le=5000)
     rag_retrieval_limit: int = Field(default=6, ge=1, le=12)
+    document_worker_poll_seconds: float = Field(default=1.0, ge=0.1, le=60)
+    document_job_lease_seconds: int = Field(default=120, ge=30, le=3600)
+    document_job_heartbeat_seconds: int = Field(default=30, ge=5, le=300)
+    document_job_max_attempts: int = Field(default=5, ge=1, le=20)
+    document_job_retry_base_seconds: int = Field(default=10, ge=1, le=3600)
+    document_job_retry_max_seconds: int = Field(default=300, ge=1, le=86_400)
     groq_api_key: SecretStr | None = None
     groq_model: str | None = None
 
@@ -84,6 +90,10 @@ class Settings(BaseSettings):
             raise ValueError("s3_kms_key_id is required when using aws:kms encryption")
         if self.secrets_manager_provider == "aws" and not self.aws_secret_id:
             raise ValueError("aws_secret_id is required for AWS Secrets Manager")
+        if self.document_job_heartbeat_seconds >= self.document_job_lease_seconds:
+            raise ValueError("document_job_heartbeat_seconds must be shorter than the lease")
+        if self.document_job_retry_base_seconds > self.document_job_retry_max_seconds:
+            raise ValueError("document job retry base cannot exceed the retry maximum")
         return self
 
     @property

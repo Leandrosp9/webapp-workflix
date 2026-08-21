@@ -43,6 +43,12 @@ services:
       RAG_EMBEDDING_DIMENSIONS: ${RAG_EMBEDDING_DIMENSIONS:-768}
       RAG_MAX_PDF_PAGES: ${RAG_MAX_PDF_PAGES:-500}
       RAG_RETRIEVAL_LIMIT: ${RAG_RETRIEVAL_LIMIT:-6}
+      DOCUMENT_WORKER_POLL_SECONDS: ${DOCUMENT_WORKER_POLL_SECONDS:-1}
+      DOCUMENT_JOB_LEASE_SECONDS: ${DOCUMENT_JOB_LEASE_SECONDS:-120}
+      DOCUMENT_JOB_HEARTBEAT_SECONDS: ${DOCUMENT_JOB_HEARTBEAT_SECONDS:-30}
+      DOCUMENT_JOB_MAX_ATTEMPTS: ${DOCUMENT_JOB_MAX_ATTEMPTS:-5}
+      DOCUMENT_JOB_RETRY_BASE_SECONDS: ${DOCUMENT_JOB_RETRY_BASE_SECONDS:-10}
+      DOCUMENT_JOB_RETRY_MAX_SECONDS: ${DOCUMENT_JOB_RETRY_MAX_SECONDS:-300}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-}
       FILE_STORAGE_PROVIDER: ${FILE_STORAGE_PROVIDER:-local}
@@ -92,6 +98,71 @@ services:
       timeout: 5s
       retries: 8
       start_period: 10s
+    restart: unless-stopped
+    read_only: true
+    volumes:
+      - workflix_uploads:/app/uploads
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  worker:
+    build:
+      context: ./backend
+    environment:
+      APP_NAME: ${APP_NAME:-Workflix API}
+      APP_ENV: ${APP_ENV:-development}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_VERSION: ${APP_VERSION:-0.1.0}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-workflix}:${POSTGRES_PASSWORD:-workflix}@postgres:5432/${POSTGRES_DB:-workflix}
+      JWT_SECRET: ${JWT_SECRET:-local-only-secret-change-before-deployment}
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      AI_FALLBACK_PROVIDER: ${AI_FALLBACK_PROVIDER:-groq}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-gemini-embedding-2}
+      RAG_EMBEDDING_DIMENSIONS: ${RAG_EMBEDDING_DIMENSIONS:-768}
+      RAG_MAX_PDF_PAGES: ${RAG_MAX_PDF_PAGES:-500}
+      RAG_RETRIEVAL_LIMIT: ${RAG_RETRIEVAL_LIMIT:-6}
+      DOCUMENT_WORKER_POLL_SECONDS: ${DOCUMENT_WORKER_POLL_SECONDS:-1}
+      DOCUMENT_JOB_LEASE_SECONDS: ${DOCUMENT_JOB_LEASE_SECONDS:-120}
+      DOCUMENT_JOB_HEARTBEAT_SECONDS: ${DOCUMENT_JOB_HEARTBEAT_SECONDS:-30}
+      DOCUMENT_JOB_MAX_ATTEMPTS: ${DOCUMENT_JOB_MAX_ATTEMPTS:-5}
+      DOCUMENT_JOB_RETRY_BASE_SECONDS: ${DOCUMENT_JOB_RETRY_BASE_SECONDS:-10}
+      DOCUMENT_JOB_RETRY_MAX_SECONDS: ${DOCUMENT_JOB_RETRY_MAX_SECONDS:-300}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-}
+      FILE_STORAGE_PROVIDER: ${FILE_STORAGE_PROVIDER:-local}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-25}
+      UPLOAD_DIRECTORY: /app/uploads
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      S3_SERVER_SIDE_ENCRYPTION: ${S3_SERVER_SIDE_ENCRYPTION:-}
+      S3_KMS_KEY_ID: ${S3_KMS_KEY_ID:-}
+      SECRETS_MANAGER_PROVIDER: ${SECRETS_MANAGER_PROVIDER:-env}
+      AWS_SECRET_ID: ${AWS_SECRET_ID:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_SECRETS_ENDPOINT_URL: ${AWS_SECRETS_ENDPOINT_URL:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     restart: unless-stopped
     read_only: true
     volumes:

@@ -1,14 +1,13 @@
-from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, File, UploadFile, status
+from fastapi import APIRouter, File, UploadFile, status
 from fastapi.responses import Response
 
 from app.api.dependencies import AdminUser, CurrentUser, EmployeeUser, SessionDependency
 from app.core.errors import AppError
 from app.models import DocumentStatus
-from app.rag.jobs import DocumentSchedulerDependency
+from app.rag.queue import DocumentQueueDependency
 from app.schemas.trainings import (
     AdminDashboardResponse,
     DocumentVersionResponse,
@@ -78,8 +77,6 @@ async def upload_training_pdf(
     training_id: UUID,
     admin: AdminUser,
     session: SessionDependency,
-    background_tasks: BackgroundTasks,
-    scheduler: DocumentSchedulerDependency,
     file: Annotated[UploadFile, File()],
 ) -> TrainingResponse:
     response = await DocumentService(session).upload_version(
@@ -88,8 +85,6 @@ async def upload_training_pdf(
         creator_id=admin.id,
         upload=file,
     )
-    if response.document_version is not None:
-        scheduler.schedule(background_tasks, response.document_version.id)
     return response
 
 
@@ -126,31 +121,23 @@ async def process_training_document(
     training_id: UUID,
     admin: AdminUser,
     session: SessionDependency,
-    background_tasks: BackgroundTasks,
-    scheduler: DocumentSchedulerDependency,
+    queue: DocumentQueueDependency,
 ) -> DocumentVersionResponse:
     version = await DocumentService(session).latest_model_for_admin(
         training_id=training_id, company_id=admin.company_id
     )
-    updated_at = version.updated_at
-    if updated_at.tzinfo is None:
-        updated_at = updated_at.replace(tzinfo=UTC)
-    processing_is_fresh = updated_at > datetime.now(UTC) - timedelta(minutes=15)
-    if (
-        version.status in {DocumentStatus.EXTRACTING, DocumentStatus.INDEXING}
-        and processing_is_fresh
-    ):
-        raise AppError(
-            code="DOCUMENT_PROCESSING",
-            message="Document processing is already running.",
-            status_code=409,
-        )
     if version.status != DocumentStatus.READY:
+        scheduled = await queue.enqueue(session, version.id, company_id=version.company_id)
+        if not scheduled:
+            raise AppError(
+                code="DOCUMENT_PROCESSING",
+                message="Document processing is already queued or running.",
+                status_code=409,
+            )
         version.status = DocumentStatus.UPLOADED
         version.error_code = None
         await session.commit()
         await session.refresh(version)
-        scheduler.schedule(background_tasks, version.id)
     return DocumentVersionResponse.model_validate(version)
 
 

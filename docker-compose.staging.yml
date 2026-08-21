@@ -100,5 +100,34 @@ services:
       minio-init:
         condition: service_completed_successfully
 
+  worker:
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: "false"
+      DEMO_MODE: ${DEMO_MODE:-false}
+      DATABASE_URL: ${DATABASE_URL:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+      FILE_STORAGE_PROVIDER: s3
+      S3_BUCKET: ${S3_BUCKET:-workflix-staging}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-workflix-staging}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD}
+      S3_FORCE_PATH_STYLE: "true"
+      SECRETS_MANAGER_PROVIDER: ${SECRETS_MANAGER_PROVIDER:-aws}
+      AWS_SECRET_ID: ${AWS_SECRET_ID:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_SECRETS_ENDPOINT_URL: ${AWS_SECRETS_ENDPOINT_URL:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
 volumes:
   workflix_minio_data:

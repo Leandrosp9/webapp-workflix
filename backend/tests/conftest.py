@@ -21,7 +21,6 @@ from app.db.base import Base
 from app.db.session import get_db_session
 from app.main import app
 from app.models import Company, Role, User
-from app.rag.jobs import get_document_job_scheduler
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -50,13 +49,8 @@ def api() -> AsyncIterator[ApiContext]:
         async with sessions() as session:
             yield session
 
-    class NoopDocumentScheduler:
-        def schedule(self, background_tasks, version_id) -> None:
-            del background_tasks, version_id
-
     asyncio.run(prepare())
     app.dependency_overrides[get_db_session] = override_session
-    app.dependency_overrides[get_document_job_scheduler] = NoopDocumentScheduler
     try:
         with TestClient(app) as client:
             yield ApiContext(client=client, sessions=sessions)

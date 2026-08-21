@@ -6,6 +6,7 @@
 
 - `frontend`: a static Nginx image that proxies `/api/` to the backend.
 - `backend`: FastAPI, started only after PostgreSQL is healthy; Alembic and the idempotent NovaTech demo seed run before the server.
+- `worker`: independently scalable document processor that starts after migrations and consumes leased PostgreSQL jobs.
 - `postgres`: PostgreSQL with pgvector and a persistent named volume.
 
 Host ports can be changed with `POSTGRES_PORT`, `BACKEND_PORT`, and `FRONTEND_PORT` without changing container-to-container addresses. PostgreSQL and the direct backend port bind to loopback; the frontend is the public ingress.
@@ -55,6 +56,8 @@ Copy `.env.example` to `.env` and replace every deployment secret. The included 
 
 Document intelligence uses `RAG_EMBEDDING_MODEL=gemini-embedding-2`, a schema-fixed `RAG_EMBEDDING_DIMENSIONS=768`, `RAG_MAX_PDF_PAGES`, and `RAG_RETRIEVAL_LIMIT`. `GEMINI_API_KEY` enables both embeddings and grounded answer generation. Without the key, upload/extraction still succeeds and the version remains `EXTRACTED` until an ADMIN requests reprocessing after configuration is available.
 
+Worker behavior is controlled by `DOCUMENT_WORKER_POLL_SECONDS`, `DOCUMENT_JOB_LEASE_SECONDS`, `DOCUMENT_JOB_HEARTBEAT_SECONDS`, `DOCUMENT_JOB_MAX_ATTEMPTS`, `DOCUMENT_JOB_RETRY_BASE_SECONDS`, and `DOCUMENT_JOB_RETRY_MAX_SECONDS`. Keep the heartbeat shorter than the lease. Jobs are delivered at least once, so the extraction/indexing pipeline is intentionally idempotent.
+
 ## Operational endpoints
 
 - `GET /health`: process liveness without dependency details.
@@ -69,4 +72,4 @@ Document intelligence uses `RAG_EMBEDDING_MODEL=gemini-embedding-2`, a schema-fi
 - Back up PostgreSQL and object storage independently and test restoration.
 - Keep `RATE_LIMIT_PROVIDER=redis`; the API fails closed with `503` if it cannot make a distributed limit decision.
 - Use `FILE_STORAGE_PROVIDER=s3` or `r2` before horizontal scaling and keep the bucket private.
-- Replace process-local document background tasks with a durable queue and idempotent worker before running multiple backend replicas; persistent states and the retry endpoint are recovery controls, not queue durability.
+- Scale API and worker replicas independently. Keep worker lease/heartbeat settings consistent across replicas and alert on `DEAD_LETTER` jobs.

@@ -21,6 +21,7 @@ from app.models import (
     TrainingType,
     User,
 )
+from app.rag.queue import DocumentJobQueue
 from app.schemas.trainings import DocumentVersionResponse, TrainingResponse
 from app.services.trainings import TrainingService
 from app.storage import (
@@ -33,9 +34,15 @@ from app.storage import (
 
 
 class DocumentService:
-    def __init__(self, session: AsyncSession, storage: ObjectStorage | None = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        storage: ObjectStorage | None = None,
+        queue: DocumentJobQueue | None = None,
+    ) -> None:
         self._session = session
         self._storage = storage or get_object_storage()
+        self._queue = queue or DocumentJobQueue()
 
     async def _authorized_training(
         self, training_id: UUID, company_id: UUID, user: User
@@ -149,6 +156,8 @@ class DocumentService:
         training.pdf_path = object_key
         training.type = TrainingType.PDF
         try:
+            await self._session.flush()
+            await self._queue.enqueue(self._session, version.id, company_id=company_id)
             await self._session.commit()
             await self._session.refresh(version)
             await self._session.refresh(training)

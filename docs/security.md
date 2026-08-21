@@ -38,6 +38,8 @@ PDF uploads require the PDF MIME type, a `%PDF-` signature, and the configured s
 
 PyMuPDF extraction has a page cap, rejects password-protected or textless PDFs with safe codes, strips NUL bytes, and never logs document text. Retrieval requires the authenticated `company_id` and `user_id`, filters company, active principal, assignment, published training, requested document, and latest `READY` version before cosine ranking. PDF content is wrapped as untrusted evidence and the system prompt explicitly rejects instructions embedded in sources. Generated citations are validated against retrieved chunks before the API exposes document version, title, page, excerpt, and score.
 
+The API never executes PDF work in its process. It commits the immutable version and tenant-scoped processing job in one database transaction. Workers claim with row locks and renewable ownership leases; an expired lease is recoverable by another replica. Bounded attempts, exponential retry, and dead-letter state prevent poison documents from looping forever. Stored job errors are allowlisted codes rather than exception messages or document content.
+
 AI keys can come from the managed secret, generated output is schema-validated, and the RAG endpoint shares the protected AI rate-limit scope. Without `GEMINI_API_KEY`, extraction remains available but indexing and answers are not enabled.
 
 ## Staging secret handling

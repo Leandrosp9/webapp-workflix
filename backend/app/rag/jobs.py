@@ -1,16 +1,14 @@
 import asyncio
-from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import BackgroundTasks, Depends
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.db.session import SessionFactory
 from app.models import (
     DocumentChunk,
     DocumentPage,
@@ -21,9 +19,16 @@ from app.rag.chunker import DocumentChunker
 from app.rag.embeddings import EmbeddingError, EmbeddingProvider, EmbeddingTask
 from app.rag.extractor import PDFExtractionError, PyMuPDFExtractor
 from app.rag.providers import GeminiEmbeddingProvider
-from app.storage import ObjectNotFoundError, ObjectStorage, StorageError, get_object_storage
+from app.storage import ObjectNotFoundError, ObjectStorage, StorageError
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class DocumentProcessingOutcome:
+    completed: bool
+    retryable: bool = False
+    error_code: str | None = None
 
 
 def build_embedding_provider() -> EmbeddingProvider | None:
@@ -53,7 +58,7 @@ class DocumentProcessingService:
         self._extractor = PyMuPDFExtractor(max_pages=settings.rag_max_pdf_pages)
         self._chunker = DocumentChunker()
 
-    async def process(self, version_id: UUID) -> None:
+    async def process(self, version_id: UUID) -> DocumentProcessingOutcome:
         version = await self._session.scalar(
             select(DocumentVersion)
             .options(selectinload(DocumentVersion.document))
@@ -62,17 +67,11 @@ class DocumentProcessingService:
         )
         if version is None:
             logger.warning("document_version_missing", extra={"version_id": str(version_id)})
-            return
-        updated_at = version.updated_at
-        if updated_at.tzinfo is None:
-            updated_at = updated_at.replace(tzinfo=UTC)
-        processing_is_fresh = updated_at > datetime.now(UTC) - timedelta(minutes=15)
-        if version.status == DocumentStatus.READY or (
-            version.status in {DocumentStatus.EXTRACTING, DocumentStatus.INDEXING}
-            and processing_is_fresh
-        ):
             await self._session.rollback()
-            return
+            return DocumentProcessingOutcome(completed=True)
+        if version.status == DocumentStatus.READY:
+            await self._session.rollback()
+            return DocumentProcessingOutcome(completed=True)
 
         try:
             version.status = DocumentStatus.EXTRACTING
@@ -111,7 +110,7 @@ class DocumentProcessingService:
             await self._session.commit()
 
             if self._embedding_provider is None:
-                return
+                return DocumentProcessingOutcome(completed=True)
 
             chunks = self._chunker.chunk(pages)
             if not chunks:
@@ -144,24 +143,35 @@ class DocumentProcessingService:
             version.status = DocumentStatus.READY
             version.processed_at = datetime.now(UTC)
             await self._session.commit()
+            return DocumentProcessingOutcome(completed=True)
         except Exception as exc:
             await self._session.rollback()
-            await self._mark_failed(version_id, exc)
+            error_code, retryable = await self._mark_failed(version_id, exc)
+            return DocumentProcessingOutcome(
+                completed=False,
+                retryable=retryable,
+                error_code=error_code,
+            )
 
-    async def _mark_failed(self, version_id: UUID, exc: Exception) -> None:
+    async def _mark_failed(self, version_id: UUID, exc: Exception) -> tuple[str, bool]:
         version = await self._session.get(DocumentVersion, version_id)
         if version is None:
-            return
+            return "DOCUMENT_VERSION_NOT_FOUND", False
         if isinstance(exc, PDFExtractionError):
             error_code = exc.code
+            retryable = False
         elif isinstance(exc, ObjectNotFoundError):
             error_code = "DOCUMENT_OBJECT_NOT_FOUND"
+            retryable = True
         elif isinstance(exc, StorageError):
             error_code = "STORAGE_UNAVAILABLE"
+            retryable = True
         elif isinstance(exc, EmbeddingError):
             error_code = "EMBEDDING_FAILED"
+            retryable = True
         else:
             error_code = "PROCESSING_FAILED"
+            retryable = True
         version.status = DocumentStatus.FAILED
         version.error_code = error_code
         version.processed_at = datetime.now(UTC)
@@ -174,24 +184,4 @@ class DocumentProcessingService:
                 "error_type": type(exc).__name__,
             },
         )
-
-
-async def process_document_version(version_id: UUID) -> None:
-    async with SessionFactory() as session:
-        await DocumentProcessingService(
-            session,
-            storage=get_object_storage(),
-            embedding_provider=build_embedding_provider(),
-        ).process(version_id)
-
-
-class DocumentJobScheduler:
-    def schedule(self, background_tasks: BackgroundTasks, version_id: UUID) -> None:
-        background_tasks.add_task(process_document_version, version_id)
-
-
-def get_document_job_scheduler() -> DocumentJobScheduler:
-    return DocumentJobScheduler()
-
-
-DocumentSchedulerDependency = Annotated[DocumentJobScheduler, Depends(get_document_job_scheduler)]
+        return error_code, retryable

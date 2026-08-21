@@ -49,10 +49,21 @@ class DocumentStatus(StrEnum):
     FAILED = "FAILED"
 
 
+class DocumentJobStatus(StrEnum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    RETRYING = "RETRYING"
+    COMPLETED = "COMPLETED"
+    DEAD_LETTER = "DEAD_LETTER"
+
+
 role_enum = Enum(Role, native_enum=False, length=16, validate_strings=True)
 training_type_enum = Enum(TrainingType, native_enum=False, length=16, validate_strings=True)
 training_status_enum = Enum(TrainingStatus, native_enum=False, length=16, validate_strings=True)
 document_status_enum = Enum(DocumentStatus, native_enum=False, length=16, validate_strings=True)
+document_job_status_enum = Enum(
+    DocumentJobStatus, native_enum=False, length=16, validate_strings=True
+)
 
 
 class TimestampMixin:
@@ -249,6 +260,54 @@ class DocumentVersion(TimestampMixin, Base):
     chunks: Mapped[list[DocumentChunk]] = relationship(
         back_populates="document_version", cascade="all, delete-orphan"
     )
+    processing_job: Mapped[DocumentProcessingJob | None] = relationship(
+        back_populates="document_version", cascade="all, delete-orphan", uselist=False
+    )
+
+
+class DocumentProcessingJob(TimestampMixin, Base):
+    __tablename__ = "document_processing_jobs"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_version_id", name="uq_document_processing_jobs_document_version"
+        ),
+        CheckConstraint("attempts >= 0", name="non_negative_attempts"),
+        CheckConstraint("max_attempts > 0", name="positive_max_attempts"),
+        CheckConstraint("attempts <= max_attempts", name="attempts_within_limit"),
+        CheckConstraint(
+            "status IN ('PENDING', 'RUNNING', 'RETRYING', 'COMPLETED', 'DEAD_LETTER')",
+            name="valid_status",
+        ),
+        Index(
+            "ix_document_processing_jobs_claim",
+            "status",
+            "available_at",
+            "leased_until",
+        ),
+        Index("ix_document_processing_jobs_company_status", "company_id", "status"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[DocumentJobStatus] = mapped_column(
+        document_job_status_enum, nullable=False, default=DocumentJobStatus.PENDING
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    available_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=func.now
+    )
+    leased_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    worker_id: Mapped[str | None] = mapped_column(String(160))
+    last_error_code: Mapped[str | None] = mapped_column(String(80))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    document_version: Mapped[DocumentVersion] = relationship(back_populates="processing_job")
 
 
 class DocumentPage(Base):
