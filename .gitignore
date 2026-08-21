@@ -19,6 +19,8 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+playwright-report/
+test-results/playwright/
 
 # IDE and operating system
 .idea/
@@ -32,3 +34,4 @@ uploads/
 
 # Local tooling
 .docker/
+docker/staging.env
