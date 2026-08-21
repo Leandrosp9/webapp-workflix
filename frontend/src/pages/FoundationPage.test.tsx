@@ -3,37 +3,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../app/App";
 
-describe("FoundationPage", () => {
+describe("Workflix authentication", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    localStorage.clear();
   });
 
-  it("renders the product foundation and live API version", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        headers: new Headers(),
-        json: () =>
-          Promise.resolve({
-            status: "healthy",
-            service: "workflix-api",
-            version: "0.1.0",
-            environment: "test",
-          }),
-      }),
-    );
-
+  it("renders the login experience and demo account controls", async () => {
     render(<App />);
 
-    expect(
-      await screen.findByRole("heading", { name: /knowledge that moves/i }, { timeout: 10_000 }),
-    ).toBeInTheDocument();
-    expect(await screen.findByText("API 0.1.0", {}, { timeout: 10_000 })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /api documentation/i })).toHaveAttribute(
-      "href",
-      "http://localhost:8000/docs",
-    );
+    expect(await screen.findByRole("heading", { name: /acesse sua conta/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /colaborador/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /administrador/i })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("employee@workflix.demo")).toBeInTheDocument();
   });
 });
