@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
-from typing import Protocol, TypeVar
+from dataclasses import dataclass, replace
+from typing import Any, Protocol, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -35,6 +35,7 @@ class AIRequest:
     system_prompt: str | None = None
     temperature: float = 0.2
     max_output_tokens: int = 2048
+    response_schema: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if not self.feature.strip():
@@ -97,7 +98,8 @@ class AIProvider(ABC):
         request: AIRequest,
         schema: type[StructuredModel],
     ) -> tuple[StructuredModel, AIResponse]:
-        response = await self.generate_text(request)
+        structured_request = replace(request, response_schema=schema.model_json_schema())
+        response = await self.generate_text(structured_request)
         try:
             parsed = schema.model_validate_json(response.text)
         except ValidationError as exc:

@@ -43,6 +43,7 @@ services:
       GROQ_MODEL: ${GROQ_MODEL:-}
       FILE_STORAGE_PROVIDER: ${FILE_STORAGE_PROVIDER:-local}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-25}
+      UPLOAD_DIRECTORY: /app/uploads
     ports:
       - "8000:8000"
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
@@ -63,6 +64,8 @@ services:
       start_period: 10s
     restart: unless-stopped
     read_only: true
+    volumes:
+      - workflix_uploads:/app/uploads
     tmpfs:
       - /tmp
     security_opt:
@@ -83,3 +86,4 @@ services:
 
 volumes:
   workflix_postgres_data:
+  workflix_uploads:

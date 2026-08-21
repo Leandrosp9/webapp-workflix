@@ -7,6 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN addgroup --system workflix && adduser --system --ingroup workflix workflix
+RUN mkdir -p /app/uploads && chown workflix:workflix /app/uploads
 
 COPY pyproject.toml ./
 COPY app ./app
@@ -20,4 +21,3 @@ USER workflix
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-

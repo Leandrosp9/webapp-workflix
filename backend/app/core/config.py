@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
@@ -29,6 +30,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     file_storage_provider: Literal["local", "s3", "r2"] = "local"
     max_upload_size_mb: int = Field(default=25, ge=1, le=250)
+    upload_directory: Path = Path("uploads")
 
     ai_provider: str = "gemini"
     ai_fallback_provider: str | None = "groq"
