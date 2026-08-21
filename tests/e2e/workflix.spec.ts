@@ -9,6 +9,31 @@ async function login(page: Page, email: string) {
   await page.getByRole("button", { name: "Entrar na Workflix" }).click();
 }
 
+function makeTextPdf(text: string): Buffer {
+  const stream = `BT\n/F1 12 Tf\n72 720 Td\n(${text.replace(/[()\\]/g, " ")}) Tj\nET\n`;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}endstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(pdf));
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  pdf += offsets
+    .slice(1)
+    .map((offset) => `${offset.toString().padStart(10, "0")} 00000 n \n`)
+    .join("");
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return Buffer.from(pdf);
+}
+
 test("colaborador conclui o fluxo de aprendizagem e avaliação", async ({
   page,
 }) => {
@@ -69,6 +94,54 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
     page.getByRole("heading", { name: "Colaboradores" }),
   ).toBeVisible();
   await expect(page.getByText("employee@workflix.demo")).toBeVisible();
+});
+
+test("administrador versiona PDF e acompanha a extração", async ({ page }) => {
+  await login(page, "admin@workflix.demo");
+  await expect(page).toHaveURL(/\/admin$/);
+  const token = await page.evaluate(() =>
+    localStorage.getItem("workflix.access"),
+  );
+  expect(token).toBeTruthy();
+  const headers = { Authorization: `Bearer ${token}` };
+  const created = await page.request.post("/api/v1/trainings", {
+    headers,
+    data: {
+      title: "Playwright PDF temporário",
+      description: "Valida versionamento e extração no navegador.",
+      type: "PDF",
+      content: "",
+      estimated_minutes: 5,
+      status: "DRAFT",
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  const training = (await created.json()) as { id: string };
+
+  try {
+    await page.goto(`/admin/trainings/${training.id}`);
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "politica.pdf",
+      mimeType: "application/pdf",
+      buffer: makeTextPdf("Comunique incidentes ao time de seguranca."),
+    });
+
+    await expect(
+      page.getByText("Versão 1 enviada. Extração iniciada."),
+    ).toBeVisible();
+    await expect(page.getByText("Texto extraído")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.getByText(/1 páginas · 0 trechos indexados/),
+    ).toBeVisible();
+  } finally {
+    const removed = await page.request.delete(
+      `/api/v1/trainings/${training.id}`,
+      { headers },
+    );
+    expect(removed.status()).toBe(204);
+  }
 });
 
 test("experiência do colaborador não cria overflow horizontal no celular", async ({

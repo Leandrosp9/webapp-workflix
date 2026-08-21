@@ -1,6 +1,25 @@
 export type Role = "ADMIN" | "EMPLOYEE";
 export type TrainingType = "ARTICLE" | "VIDEO" | "PDF";
 export type TrainingStatus = "DRAFT" | "PUBLISHED";
+export type DocumentStatus =
+  "UPLOADED" | "EXTRACTING" | "EXTRACTED" | "INDEXING" | "READY" | "FAILED";
+
+export interface DocumentVersion {
+  id: string;
+  document_id: string;
+  version_number: number;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  checksum: string;
+  status: DocumentStatus;
+  page_count: number;
+  chunk_count: number;
+  error_code: string | null;
+  created_at: string;
+  updated_at: string;
+  processed_at: string | null;
+}
 
 export interface User {
   id: string;
@@ -45,6 +64,23 @@ export interface Training {
   assigned_at: string | null;
   due_date: string | null;
   has_quiz: boolean;
+  document_version?: DocumentVersion | null;
+}
+
+export interface RagSource {
+  document_id: string;
+  document_version_id: string;
+  title: string;
+  page: number;
+  excerpt: string;
+  score: number;
+}
+
+export interface RagAnswer {
+  answer: string;
+  sources: RagSource[];
+  provider: string;
+  model: string;
 }
 
 export interface EmployeeHome {

@@ -2234,6 +2234,126 @@ label {
   border: 0;
   background: transparent;
 }
+.document-upload-block {
+  display: grid;
+  gap: 12px;
+}
+.document-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 17px;
+  border: 1px solid var(--wf-line);
+  border-left: 3px solid #768094;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.018);
+}
+.document-status.status-ready {
+  border-left-color: #62d7a2;
+}
+.document-status.status-failed {
+  border-left-color: #ef7c8e;
+}
+.document-status.status-extracting,
+.document-status.status-indexing,
+.document-status.status-uploaded {
+  border-left-color: var(--wf-purple);
+}
+.document-status span,
+.document-status strong,
+.document-status small {
+  display: block;
+}
+.document-status span {
+  color: #8792a5;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+.document-status strong {
+  margin: 3px 0;
+  font-size: 0.79rem;
+}
+.document-status small {
+  color: #737e90;
+  font-size: 0.62rem;
+}
+.rag-panel {
+  display: grid;
+  gap: 18px;
+  margin: 26px;
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid rgba(139, 114, 255, 0.23);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(139, 114, 255, 0.07), rgba(9, 13, 21, 0.8));
+}
+.rag-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+}
+.rag-heading > svg {
+  flex: 0 0 auto;
+  color: #aaa0e8;
+}
+.rag-heading h2,
+.rag-heading p {
+  margin: 0;
+}
+.rag-heading p {
+  margin-top: 5px;
+  color: var(--wf-muted);
+  font-size: 0.7rem;
+}
+.rag-question {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+.rag-question textarea {
+  resize: vertical;
+}
+.rag-answer {
+  padding: 19px;
+  border: 1px solid var(--wf-line);
+  border-radius: 10px;
+  background: rgba(3, 6, 12, 0.48);
+}
+.rag-answer > strong,
+.rag-sources > span {
+  color: #aaa0e8;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rag-answer > p {
+  color: #c5ccd7;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.rag-sources {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+.rag-sources details {
+  padding: 10px 12px;
+  border: 1px solid var(--wf-line);
+  border-radius: 8px;
+}
+.rag-sources summary {
+  cursor: pointer;
+  color: #aeb7c5;
+  font-size: 0.7rem;
+}
+.rag-sources details p {
+  margin: 9px 0 0;
+  color: #7f8a9c;
+  font-size: 0.66rem;
+  line-height: 1.6;
+}
 .passing-field {
   width: 140px;
   margin-bottom: 18px;
@@ -2483,6 +2603,17 @@ label {
   .pdf-upload {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .document-status,
+  .rag-question {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+  .document-status {
+    flex-direction: column;
+  }
+  .rag-panel {
+    margin: 17px;
   }
   .result-actions {
     align-items: stretch;

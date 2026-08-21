@@ -1,14 +1,26 @@
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, FileText, PlayCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Bot,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  PlayCircle,
+  Send,
+} from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { ErrorState, LoadingState } from "../components/PageState";
-import { api, downloadPdf } from "../services/http";
-import type { Training } from "../types/api";
+import { ApiError, api, downloadPdf } from "../services/http";
+import type { DocumentVersion, RagAnswer, Training } from "../types/api";
 
 export default function TrainingPlayerPage() {
   const { trainingId = "" } = useParams();
   const queryClient = useQueryClient();
+  const [question, setQuestion] = useState("");
+  const [ragError, setRagError] = useState("");
   const query = useQuery({
     queryKey: ["training", trainingId],
     queryFn: () => api<Training>(`/employee/trainings/${trainingId}`),
@@ -23,6 +35,29 @@ export default function TrainingPlayerPage() {
       queryClient.setQueryData(["training", trainingId], training);
       void queryClient.invalidateQueries({ queryKey: ["employee-home"] });
     },
+  });
+  const documentQuery = useQuery({
+    queryKey: ["training-document", trainingId],
+    queryFn: () => api<DocumentVersion>(`/trainings/${trainingId}/document`),
+    enabled: Boolean(query.data?.has_pdf),
+    retry: false,
+    refetchInterval: (statusQuery) =>
+      statusQuery.state.data &&
+      ["UPLOADED", "EXTRACTING", "INDEXING"].includes(statusQuery.state.data.status)
+        ? 2_000
+        : false,
+  });
+  const askDocument = useMutation({
+    mutationFn: () =>
+      api<RagAnswer>(`/trainings/${trainingId}/ask`, {
+        method: "POST",
+        body: JSON.stringify({ question }),
+      }),
+    onMutate: () => setRagError(""),
+    onError: (reason) =>
+      setRagError(
+        reason instanceof ApiError ? reason.message : "Não foi possível consultar o documento.",
+      ),
   });
 
   if (query.isLoading) return <LoadingState label="Abrindo treinamento…" />;
@@ -57,18 +92,72 @@ export default function TrainingPlayerPage() {
             </div>
           )}
           {training.type === "PDF" && training.has_pdf && (
-            <div className="pdf-player">
-              <FileText size={46} />
-              <h2>Material em PDF</h2>
-              <p>O documento é servido com autorização e não possui URL pública.</p>
-              <button
-                className="button secondary"
-                type="button"
-                onClick={() => void downloadPdf(training.id)}
-              >
-                Baixar material
-              </button>
-            </div>
+            <>
+              <div className="pdf-player">
+                <FileText size={46} />
+                <h2>Material em PDF</h2>
+                <p>O documento é servido com autorização e não possui URL pública.</p>
+                <button
+                  className="button secondary"
+                  type="button"
+                  onClick={() => void downloadPdf(training.id)}
+                >
+                  Baixar material
+                </button>
+              </div>
+              <section className="rag-panel">
+                <div className="rag-heading">
+                  <Bot size={24} />
+                  <div>
+                    <h2>Pergunte ao documento</h2>
+                    <p>
+                      {documentQuery.data?.status === "READY"
+                        ? `${documentQuery.data.page_count} páginas indexadas com fontes verificáveis.`
+                        : "A pergunta será liberada quando a indexação estiver pronta."}
+                    </p>
+                  </div>
+                </div>
+                <div className="rag-question">
+                  <textarea
+                    rows={3}
+                    value={question}
+                    maxLength={1000}
+                    placeholder="Ex.: Qual é o procedimento recomendado para comunicar um incidente?"
+                    onChange={(event) => setQuestion(event.target.value)}
+                  />
+                  <button
+                    className="button primary"
+                    type="button"
+                    disabled={
+                      question.trim().length < 3 ||
+                      askDocument.isPending ||
+                      documentQuery.data?.status !== "READY"
+                    }
+                    onClick={() => askDocument.mutate()}
+                  >
+                    <Send size={15} /> {askDocument.isPending ? "Consultando…" : "Perguntar"}
+                  </button>
+                </div>
+                {ragError && <div className="form-error">{ragError}</div>}
+                {askDocument.data && (
+                  <div className="rag-answer" aria-live="polite">
+                    <strong>Resposta</strong>
+                    <p>{askDocument.data.answer}</p>
+                    <div className="rag-sources">
+                      <span>Fontes</span>
+                      {askDocument.data.sources.map((source) => (
+                        <details key={`${source.document_version_id}-${source.page}`}>
+                          <summary>
+                            {source.title} · página {source.page}
+                          </summary>
+                          <p>{source.excerpt}</p>
+                        </details>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
+            </>
           )}
           {training.content && <div className="article-content">{training.content}</div>}
         </article>

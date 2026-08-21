@@ -1,11 +1,18 @@
-import { ArrowLeft, FileUp, Plus, Save, Sparkles, Trash2, Users } from "lucide-react";
+import { ArrowLeft, FileUp, Plus, RefreshCw, Save, Sparkles, Trash2, Users } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { LoadingState } from "../../components/PageState";
 import { ApiError, api } from "../../services/http";
-import type { Training, TrainingStatus, TrainingType, UserSummary } from "../../types/api";
+import type {
+  DocumentStatus,
+  DocumentVersion,
+  Training,
+  TrainingStatus,
+  TrainingType,
+  UserSummary,
+} from "../../types/api";
 
 interface TrainingForm {
   title: string;
@@ -52,6 +59,16 @@ const emptyQuiz = (): QuizDraft => ({
   ],
 });
 
+const processingStatuses: DocumentStatus[] = ["UPLOADED", "EXTRACTING", "INDEXING"];
+const documentStatusLabels: Record<DocumentStatus, string> = {
+  UPLOADED: "Na fila",
+  EXTRACTING: "Extraindo páginas",
+  EXTRACTED: "Texto extraído",
+  INDEXING: "Criando índice semântico",
+  READY: "Pronto para perguntas",
+  FAILED: "Falha no processamento",
+};
+
 export default function AdminTrainingEditorPage() {
   const { trainingId } = useParams();
   const isNew = !trainingId || trainingId === "new";
@@ -73,6 +90,14 @@ export default function AdminTrainingEditorPage() {
     queryFn: () => api<QuizDraft>(`/trainings/${trainingId}/quiz`),
     enabled: !isNew && Boolean(trainingQuery.data?.has_quiz),
     retry: false,
+  });
+  const documentQuery = useQuery({
+    queryKey: ["training-document", trainingId],
+    queryFn: () => api<DocumentVersion>(`/trainings/${trainingId}/document`),
+    enabled: !isNew && Boolean(trainingQuery.data?.has_pdf),
+    retry: false,
+    refetchInterval: (query) =>
+      query.state.data && processingStatuses.includes(query.state.data.status) ? 2_000 : false,
   });
 
   useEffect(() => {
@@ -168,9 +193,23 @@ export default function AdminTrainingEditorPage() {
       data.append("file", file);
       return api<Training>(`/trainings/${trainingId}/pdf`, { method: "POST", body: data });
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
       setForm((current) => ({ ...current, type: "PDF" }));
-      setMessage("PDF enviado com segurança.");
+      if (saved.document_version) {
+        client.setQueryData(["training-document", trainingId], saved.document_version);
+        setMessage(`Versão ${saved.document_version.version_number} enviada. Extração iniciada.`);
+      }
+      void client.invalidateQueries({ queryKey: ["admin-training", trainingId] });
+    },
+    onError: handleError,
+  });
+  const processDocument = useMutation({
+    mutationFn: () =>
+      api<DocumentVersion>(`/trainings/${trainingId}/document/process`, { method: "POST" }),
+    onSuccess: (version) => {
+      client.setQueryData(["training-document", trainingId], version);
+      setMessage("Reprocessamento solicitado.");
+      void documentQuery.refetch();
     },
     onError: handleError,
   });
@@ -320,21 +359,52 @@ export default function AdminTrainingEditorPage() {
             />
           </label>
           {!isNew && (
-            <label className="pdf-upload full">
-              <FileUp />
-              <span>
-                <strong>Enviar material PDF</strong>
-                <small>Máximo configurado no servidor; validação por tipo e assinatura.</small>
-              </span>
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) uploadPdf.mutate(file);
-                }}
-              />
-            </label>
+            <div className="document-upload-block full">
+              <label className="pdf-upload">
+                <FileUp />
+                <span>
+                  <strong>{uploadPdf.isPending ? "Enviando…" : "Enviar nova versão do PDF"}</strong>
+                  <small>O histórico é preservado; tipo, assinatura e tamanho são validados.</small>
+                </span>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  disabled={uploadPdf.isPending}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) uploadPdf.mutate(file);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+              {documentQuery.data && (
+                <div
+                  className={`document-status status-${documentQuery.data.status.toLowerCase()}`}
+                >
+                  <div>
+                    <span>Versão {documentQuery.data.version_number}</span>
+                    <strong>{documentStatusLabels[documentQuery.data.status]}</strong>
+                    <small>
+                      {documentQuery.data.page_count} páginas · {documentQuery.data.chunk_count}{" "}
+                      trechos indexados
+                    </small>
+                    {documentQuery.data.error_code && (
+                      <small>Código: {documentQuery.data.error_code}</small>
+                    )}
+                  </div>
+                  {["FAILED", "EXTRACTED"].includes(documentQuery.data.status) && (
+                    <button
+                      className="button ghost"
+                      type="button"
+                      disabled={processDocument.isPending}
+                      onClick={() => processDocument.mutate()}
+                    >
+                      <RefreshCw size={14} /> Reprocessar
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </section>
