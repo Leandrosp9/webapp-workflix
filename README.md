@@ -35,6 +35,7 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 - Company-scoped users, trainings, assignments, progress, quizzes, and attempts.
 - ARTICLE, VIDEO, and PDF training formats with draft/published workflow.
 - Authorized PDF upload/download with MIME, signature, and size validation.
+- Provider-neutral local/S3-compatible PDF storage with private tenant-scoped object keys.
 - Employee home, catalog, player, assessment, correction, and result experiences.
 - Admin dashboard, training/quiz editor, assignment workflow, and employee management.
 - Gemini structured generation for reviewable training and quiz drafts.
@@ -42,11 +43,13 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 - FastAPI application factory with versioned routes and OpenAPI documentation.
 - Stable error envelopes and correlation IDs returned as `X-Request-ID`.
 - Structured JSON logs without prompts, tokens, secrets, or document bodies.
+- Redis-backed rate limits for authentication and AI generation, with a memory adapter for local use.
+- Optional AWS Secrets Manager bootstrap with an explicit secret-key allowlist.
 - Liveness and dependency-aware readiness endpoints.
 - SQLAlchemy 2.x asynchronous infrastructure and Alembic-only schema evolution.
 - PostgreSQL 17 with pgvector and health-gated container startup.
 - Multi-stage, health-checked Docker images and a three-service Compose topology.
-- Backend and frontend lint, format, test, and build checks in GitHub Actions.
+- Backend/frontend quality gates and Playwright browser journeys against Docker in GitHub Actions.
 
 ### Intentionally deferred
 
@@ -77,7 +80,8 @@ flowchart LR
     Browser[React web client] -->|REST /api/v1| API[FastAPI application]
     API --> Services[Application services]
     Services --> DB[(PostgreSQL + pgvector)]
-    Services --> Storage[File storage interface]
+    Services --> Storage[Local or S3-compatible object storage]
+    API --> Redis[(Redis rate limits)]
     Services --> AI[AIService]
     AI --> Gemini[Gemini]
     AI -. explicit fallback .-> Groq[Groq]
@@ -89,20 +93,20 @@ Workflix begins as a modular monolith. This keeps deployment and transactions si
 
 ## Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Web | React 19, Vite, TypeScript, React Router, TanStack Query |
-| UI | Tailwind CSS, Lucide React, Framer Motion |
-| Forms | React Hook Form, Zod |
-| API | Python 3.13, FastAPI, Pydantic Settings |
-| Persistence | SQLAlchemy 2.x, Alembic, psycopg |
-| Data | PostgreSQL 17, pgvector |
-| Quality | Ruff, pytest, ESLint, Prettier, Vitest, Testing Library |
-| Delivery | Docker Compose, Nginx, GitHub Actions |
+| Layer       | Technology                                                          |
+| ----------- | ------------------------------------------------------------------- |
+| Web         | React 19, Vite, TypeScript, React Router, TanStack Query            |
+| UI          | Tailwind CSS, Lucide React, Framer Motion                           |
+| Forms       | React Hook Form, Zod                                                |
+| API         | Python 3.13, FastAPI, Pydantic Settings                             |
+| Persistence | SQLAlchemy 2.x, Alembic, psycopg                                    |
+| Data        | PostgreSQL 17, pgvector                                             |
+| Quality     | Ruff, pytest, ESLint, Prettier, Vitest, Testing Library, Playwright |
+| Delivery    | Docker Compose, Nginx, Redis, MinIO, GitHub Actions                 |
 
 ## Product experience
 
-The production frontend includes a split-screen login, personalized employee discovery, authenticated learning player, multi-step quiz/result flow, admin analytics, training and quiz authoring, assignments, and people progress. It was visually checked at desktop and at a 390×844 mobile viewport.
+The production frontend includes a split-screen login, personalized employee discovery, authenticated learning player, multi-step quiz/result flow, admin analytics, training and quiz authoring, assignments, and people progress. Playwright continuously checks the employee, ADMIN, and 390×844 mobile journeys.
 
 ## Demo
 
@@ -115,10 +119,10 @@ After startup (default port):
 
 NovaTech demo accounts use the same local-only password `Workflix@2026`:
 
-| Profile | Email |
-| --- | --- |
-| Administrator | `admin@workflix.demo` |
-| Employee | `employee@workflix.demo` |
+| Profile       | Email                    |
+| ------------- | ------------------------ |
+| Administrator | `admin@workflix.demo`    |
+| Employee      | `employee@workflix.demo` |
 
 Five fictional employees, six published trainings, assignments, progress, and quizzes are seeded automatically when `DEMO_MODE=true`. The seed is idempotent.
 
@@ -160,6 +164,19 @@ npm run dev
 
 Vite proxies `/api` requests to `http://localhost:8000`.
 
+### Run the hardened staging topology
+
+Copy `docker/staging.env.example` to the ignored `docker/staging.env`, replace every placeholder, and make the AWS secret available to the workload identity:
+
+```bash
+docker compose --env-file docker/staging.env \
+  -f docker-compose.yml \
+  -f docker-compose.staging.yml \
+  up --build -d
+```
+
+The overlay adds Redis, a private S3-compatible MinIO bucket, distributed request limits, and AWS Secrets Manager bootstrap. It defaults to `SECRETS_MANAGER_PROVIDER=aws`; use `env` only for an explicit portable smoke test. See [the deployment guide](docs/deployment.md) for the secret JSON contract and production notes.
+
 ### Run the backend locally
 
 Create `./.env` from `.env.example`, change the database hostname from `postgres` to `localhost`, then:
@@ -183,7 +200,9 @@ On Windows, activate with `.venv\Scripts\Activate.ps1`.
 - data: `DATABASE_URL`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`;
 - authentication: `JWT_SECRET`, access lifetime, and refresh lifetime;
 - AI: primary/fallback provider, Gemini/Groq keys, and models;
-- files: storage provider and maximum upload size;
+- files: local/S3 provider, bucket, endpoint, credentials, path style, encryption, and upload limit;
+- request protection: Redis URL and limits for login, refresh, and AI generation;
+- managed secrets: provider, secret identifier, region, and optional endpoint;
 - web: CORS origins, API base URL, and optional frontend host port.
 
 Never commit `.env` or use the included local credentials outside a development machine.
@@ -239,7 +258,14 @@ npm run test
 npm run build
 ```
 
-The backend suite covers auth rotation/logout, RBAC, tenant isolation, training visibility, progress, PDFs, quizzes, AI mocks, and seed idempotency. The final validation also executes login, learning, quiz, and ADMIN flows against the Docker/PostgreSQL stack.
+Browser journeys (requires the Docker stack):
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+The backend suite covers auth rotation/logout, RBAC, tenant isolation, training visibility, progress, PDFs, quizzes, AI mocks, rate limiting, managed secrets, object storage, and seed idempotency. Playwright executes login, learning, quiz/result, ADMIN, and mobile-overflow flows against the Docker/PostgreSQL stack in CI.
 
 ## Security
 
@@ -251,6 +277,9 @@ The backend suite covers auth rotation/logout, RBAC, tenant isolation, training 
 - Tenant context comes from the verified principal, never from a client-selected `company_id`.
 - Semantic retrieval contracts require both company and user context before ranking.
 - AI-generated business content is reviewable and never auto-published.
+- Authentication and AI abuse controls use atomic Redis windows in staging.
+- Staging secrets are loaded from an allowlisted AWS Secrets Manager JSON payload.
+- PDFs use private, tenant-prefixed S3-compatible objects and are returned only after authorization.
 
 See [docs/security.md](docs/security.md) for the complete baseline and planned controls.
 
@@ -291,16 +320,19 @@ workflix/
 │   │   │   └── retriever.py
 │   │   ├── repositories/
 │   │   ├── schemas/
+│   │   ├── storage/
 │   │   └── services/
 │   ├── migrations/
 │   ├── tests/
 │   └── Dockerfile
-├── tests/
+├── tests/e2e/
 ├── docker/
 ├── docs/
 │   └── adr/
 ├── .github/workflows/
 ├── docker-compose.yml
+├── docker-compose.staging.yml
+├── playwright.config.ts
 ├── PROJECT_STATUS.md
 └── README.md
 ```

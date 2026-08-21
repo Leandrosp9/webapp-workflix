@@ -15,6 +15,11 @@ All notable development changes are recorded here. This project follows the spir
 - Gemini structured training/quiz generation with Pydantic validation and mock-only tests.
 - Idempotent NovaTech demo seed and six local SVG cover assets.
 - MVP schema migration `20260821_0002` and end-to-end Docker validation.
+- Playwright employee, ADMIN, quiz/result, and mobile journeys executed against Docker in CI.
+- Redis-backed rate limiting for authentication and AI generation with atomic fixed windows.
+- Local and S3-compatible object-storage adapters with tenant-scoped private PDF keys.
+- AWS Secrets Manager bootstrap with an explicit allowlist and environment precedence.
+- Hardened staging Compose overlay with Redis, MinIO, private bucket bootstrap, and pinned images.
 
 - Product, architecture, database, security, and deployment documentation.
 - Architecture decision records for the frontend, backend, AI, multi-tenancy, and RAG foundations.

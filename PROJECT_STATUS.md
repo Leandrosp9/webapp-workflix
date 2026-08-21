@@ -21,8 +21,9 @@ Focused MVP — implemented and validated end to end.
 - SQLAlchemy async infrastructure and two Alembic migrations.
 - Preserved provider-neutral AI and future RAG module structure.
 - Health-gated Docker Compose topology for frontend, backend, and PostgreSQL/pgvector.
-- Backend/frontend tests, linting, formatting, production build, and GitHub Actions CI.
-- Desktop and 390×844 browser verification against the real Docker stack.
+- Hardened staging overlay with Redis rate limiting, private S3-compatible MinIO storage, and AWS Secrets Manager bootstrap.
+- Backend/frontend tests, linting, formatting, production build, and GitHub Actions CI with Playwright.
+- Automated employee, ADMIN, quiz/result, and 390×844 browser journeys against the real Docker stack.
 
 ## In progress
 
@@ -32,14 +33,14 @@ Focused MVP — implemented and validated end to end.
 
 - V2: document extraction/versioning, acknowledgments, embeddings, pgvector RAG, and cited answers.
 - V2+: learning paths, certificates, manager analytics, notifications, reports, and audit UI.
-- Production hardening: external object storage, rate limiting, SSO, secrets manager, and deployment target.
+- Production target selection, SSO, workload-specific IAM policies, backup/restore drills, and edge/network controls.
 
 ## Known issues
 
 - No external AI credentials are configured in the demo; Gemini authoring returns an explicit configuration error until `GEMINI_API_KEY` is set.
 - The PDF demo training has article fallback content but no seeded binary; an ADMIN can upload the actual PDF through the editor.
 - Video demo items use placeholder external URLs and are intended to be replaced with owned media.
-- Local file storage and the default JWT secret are development-only.
+- Local file storage, the in-memory limiter, and the default JWT secret are development-only.
 - The validation machine already had port `5173` allocated, so the complete container smoke test used the supported `FRONTEND_PORT=5174` override. The documented default remains `5173`.
 
 ## Decisions
@@ -62,13 +63,17 @@ For local quality checks, use the commands documented in `README.md`.
 
 Validated on 2026-08-21:
 
-- 22 backend tests passed;
+- 29 backend tests passed;
 - 1 frontend component/integration test passed;
 - Ruff, ESLint, and Prettier checks passed;
 - the frontend production build passed;
 - migrations through `20260821_0002` were applied to PostgreSQL;
 - PostgreSQL extensions `vector` and `pgcrypto` were present;
 - frontend, backend, and PostgreSQL containers were healthy;
+- the staging overlay started healthy with Redis and a private MinIO bucket;
+- the 11th login request from one IP returned `429` and the limiter key was verified in Redis;
+- PDF upload/download round-tripped byte-for-byte through MinIO under a tenant-scoped key;
+- 3 Playwright browser journeys passed against both the local and hardened staging stacks;
 - authentication and both role experiences were exercised through Nginx;
 - employee learning and quiz correction returned a passing result;
 - the mobile dashboard had no horizontal overflow after responsive correction.
