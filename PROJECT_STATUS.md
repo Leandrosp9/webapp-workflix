@@ -4,37 +4,42 @@ Last updated: 2026-08-21
 
 ## Current phase
 
-Phase 1 — Foundation is complete. The next implementation phase is Phase 2 — Authentication and Multi-Tenancy.
+Focused MVP — implemented and validated end to end.
 
 ## Completed
 
-- Phase 0 workspace discovery: the initial directory was empty and not yet a Git repository.
-- Initial product and technical architecture.
-- Monorepo layout decision for frontend, backend, documentation, and deployment assets.
-- Initial relational model and tenant-boundary design.
-- Architecture decision records for the major foundational choices.
-- Responsive React/Vite foundation with typed health state and production Nginx image.
+- Foundation architecture, monorepo layout, ADRs, and tenant-boundary design.
+- Premium responsive React/Vite product for ADMIN and EMPLOYEE.
+- Login, employee home/catalog/player/quiz/result, admin dashboard/trainings/editor/users.
+- Access/refresh/logout authentication, Argon2 password hashing, RBAC, and tenant isolation.
+- Company, User, Training, TrainingAssignment, UserProgress, Quiz, Question, Option, and Attempt models.
+- ARTICLE, VIDEO, and PDF workflows, including authorized local PDF storage.
+- Backend-corrected quizzes and progress completion.
+- Gemini REST structured generation with mock-only tests and human review before persistence.
+- Idempotent NovaTech seed: six users, six trainings, six quizzes, assignments, and progress.
 - FastAPI foundation with validated settings, CORS, structured logging, request IDs, safe errors, OpenAPI, liveness, and readiness.
-- SQLAlchemy session infrastructure and Alembic baseline enabling `vector` and `pgcrypto`.
-- Provider-neutral AI/RAG module structure, explicit fallback, cloud-only Ollama guardrail, page-aware chunking, tenant-bound retrieval contracts, and idempotent document processing.
+- SQLAlchemy async infrastructure and two Alembic migrations.
+- Preserved provider-neutral AI and future RAG module structure.
 - Health-gated Docker Compose topology for frontend, backend, and PostgreSQL/pgvector.
 - Backend/frontend tests, linting, formatting, production build, and GitHub Actions CI.
-- Professional English README, banner, architecture documentation, database design, security baseline, deployment notes, and ADRs.
+- Desktop and 390×844 browser verification against the real Docker stack.
 
 ## In progress
 
-- No Phase 1 implementation remains open.
+- No focused MVP implementation remains open.
 
 ## Pending
 
-- Phase 2: authentication, Company, User, refresh tokens, RBAC, and tested tenant isolation.
-- Phase 3: complete visual system, public landing page, login, and authenticated shell.
-- Phases 4–15 as described in the product roadmap.
+- V2: document extraction/versioning, acknowledgments, embeddings, pgvector RAG, and cited answers.
+- V2+: learning paths, certificates, manager analytics, notifications, reports, and audit UI.
+- Production hardening: external object storage, rate limiting, SSO, secrets manager, and deployment target.
 
 ## Known issues
 
-- No external AI credentials are configured; no AI call is required in Phase 1.
-- The foundation deliberately has no business tables yet. The first domain migration belongs to Phase 2 and will introduce companies, users, roles, departments, and positions together with their invariants.
+- No external AI credentials are configured in the demo; Gemini authoring returns an explicit configuration error until `GEMINI_API_KEY` is set.
+- The PDF demo training has article fallback content but no seeded binary; an ADMIN can upload the actual PDF through the editor.
+- Video demo items use placeholder external URLs and are intended to be replaced with owned media.
+- Local file storage and the default JWT secret are development-only.
 - The validation machine already had port `5173` allocated, so the complete container smoke test used the supported `FRONTEND_PORT=5174` override. The documented default remains `5173`.
 
 ## Decisions
@@ -51,17 +56,19 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Then open `http://localhost:5173`, `http://localhost:8000/health`, and `http://localhost:8000/docs`.
+Then open `http://localhost:5173`, `http://localhost:8000/health`, and `http://localhost:8000/docs`. If 5173 is occupied, use the documented `FRONTEND_PORT=5174` override.
 
 For local quality checks, use the commands documented in `README.md`.
 
 Validated on 2026-08-21:
 
-- 10 backend tests passed;
+- 22 backend tests passed;
 - 1 frontend component/integration test passed;
 - Ruff, ESLint, and Prettier checks passed;
 - the frontend production build passed;
-- migration `20260821_0001` was applied;
+- migrations through `20260821_0002` were applied to PostgreSQL;
 - PostgreSQL extensions `vector` and `pgcrypto` were present;
 - frontend, backend, and PostgreSQL containers were healthy;
-- `/health`, `/ready`, and the frontend returned successful responses.
+- authentication and both role experiences were exercised through Nginx;
+- employee learning and quiz correction returned a passing result;
+- the mobile dashboard had no horizontal overflow after responsive correction.

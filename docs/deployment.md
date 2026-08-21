@@ -5,7 +5,7 @@
 `docker-compose.yml` defines:
 
 - `frontend`: a static Nginx image that proxies `/api/` to the backend.
-- `backend`: FastAPI, started only after PostgreSQL is healthy; Alembic runs before the server.
+- `backend`: FastAPI, started only after PostgreSQL is healthy; Alembic and the idempotent NovaTech demo seed run before the server.
 - `postgres`: PostgreSQL with pgvector and a persistent named volume.
 
 ## Environment
@@ -25,4 +25,3 @@ Copy `.env.example` to `.env` and replace every deployment secret. The included 
 - Run migrations as an explicit release job when moving beyond a single-instance deployment.
 - Back up PostgreSQL and object storage independently and test restoration.
 - Replace local file storage with an object storage implementation before horizontal scaling.
-

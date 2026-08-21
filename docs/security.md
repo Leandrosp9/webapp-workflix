@@ -14,9 +14,15 @@ The browser is untrusted. Authentication, authorization, tenant selection, quiz 
 - Each request has a correlation ID for safe diagnostics.
 - Container services run with minimal privileges and expose health checks.
 
-## Planned authentication controls
+## Authentication controls
 
-Phase 2 introduces secure password hashing, short-lived access tokens, rotating refresh tokens stored as hashes, role checks on backend entry points, login throttling, and revocation-aware logout.
+- Passwords use Argon2 through `pwdlib`.
+- Access tokens are short-lived HS256 JWTs with issuer, audience, company, role, and token-type claims.
+- Refresh tokens are opaque, stored only as SHA-256 hashes, rotated on every use, and revoked on logout.
+- ADMIN and EMPLOYEE role checks execute on backend dependencies.
+- Login responses do not reveal whether an email exists.
+
+Login throttling is a required production-hardening item and is not implemented in the local MVP.
 
 ## Multi-tenancy controls
 
@@ -28,5 +34,4 @@ Phase 2 introduces secure password hashing, short-lived access tokens, rotating 
 
 ## AI and documents
 
-Uploaded content is data, not trusted instructions. RAG prompts explicitly treat document instructions as untrusted. AI observability records operational metadata without storing private prompts or document bodies by default.
-
+PDF uploads require the PDF MIME type, a `%PDF-` signature, and the configured size limit. Downloads re-authorize the current user and assignment. AI keys stay in environment variables, Gemini drafts are schema-validated, and generated content requires an ADMIN to save or publish it. RAG is future scope.

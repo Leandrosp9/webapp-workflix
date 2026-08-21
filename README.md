@@ -4,7 +4,7 @@
 
 Workflix is a multi-tenant corporate learning and knowledge platform designed to centralize training, procedures, documents, assessments, and evidence of progress in one measurable experience.
 
-> Project status: Phase 1 foundation is implemented. Authentication and product domains are intentionally tracked as the next phases, not represented by permanent mocks.
+> Project status: the focused Workflix MVP is implemented and runs end to end with real authentication, tenant isolation, learning workflows, quizzes, Gemini-assisted authoring, and NovaTech demo data.
 
 ## Overview
 
@@ -28,10 +28,17 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 
 ## Features
 
-### Available in the foundation
+### Available in the MVP
 
-- Responsive React/Vite experience with a distinct Workflix identity.
-- Typed server state through TanStack Query and runtime response validation through Zod.
+- Premium responsive React/Vite experience for ADMIN and EMPLOYEE profiles.
+- JWT login, short-lived access tokens, rotating opaque refresh tokens, logout, and Argon2 passwords.
+- Company-scoped users, trainings, assignments, progress, quizzes, and attempts.
+- ARTICLE, VIDEO, and PDF training formats with draft/published workflow.
+- Authorized PDF upload/download with MIME, signature, and size validation.
+- Employee home, catalog, player, assessment, correction, and result experiences.
+- Admin dashboard, training/quiz editor, assignment workflow, and employee management.
+- Gemini structured generation for reviewable training and quiz drafts.
+- Idempotent NovaTech demo seed with six local SVG training covers.
 - FastAPI application factory with versioned routes and OpenAPI documentation.
 - Stable error envelopes and correlation IDs returned as `X-Request-ID`.
 - Structured JSON logs without prompts, tokens, secrets, or document bodies.
@@ -40,31 +47,28 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 - PostgreSQL 17 with pgvector and health-gated container startup.
 - Multi-stage, health-checked Docker images and a three-service Compose topology.
 - Backend and frontend lint, format, test, and build checks in GitHub Actions.
-- Provider-neutral AI contracts with visible fallback behavior.
-- Page-aware RAG chunking, cloud embedding contracts, tenant-bound retrieval, and checksum-based processing orchestration.
 
-### Product roadmap capabilities
+### Intentionally deferred
 
-- JWT authentication with rotating refresh tokens and real backend RBAC.
-- Company, department, position, catalog, assignment, progress, and quiz domains.
-- Employee, manager, administration, and AI usage experiences.
 - PDF versioning, acknowledgment, extraction, pgvector indexing, and source-aware answers.
 - Learning paths, certificates, notifications, reports, and audit history.
+- Departments, positions, manager role, SSO, billing, and enterprise integrations.
 
 ## AI Features
 
 The AI layer is designed around cloud providers only. Gemini is primary and Groq is an optional fallback; provider and model selection are environment-driven. Domain workflows talk to `AIService`, never directly to a vendor SDK.
 
-The current foundation includes:
+The MVP includes:
 
 - `AIProvider` contracts for text, structured output, and streaming;
-- provider registry and injected transport boundary;
+- provider registry, injected transport boundary, and a real Gemini REST transport;
 - explicit fallback state instead of silent provider switching;
 - Pydantic validation for persistable structured output;
 - a deliberately disabled Ollama adapter that enforces the no-local-model policy;
-- page-aware chunks, embedding validation, tenant-bound retrieval contracts, and idempotent document processing.
+- ADMIN-only `/api/v1/ai/generate-training` and `/api/v1/ai/generate-quiz` endpoints;
+- Pydantic/JSON Schema validation before generated content reaches the editor.
 
-Vendor HTTP transports, AI request persistence, rate limiting, and business generation endpoints are delivered in the AI phase so they arrive with their observability and security controls rather than as incomplete calls.
+Tests inject a fake provider and never spend a real Gemini request. `GEMINI_API_KEY` is optional for the rest of the product; without it, generation returns an explicit `503 AI_NOT_CONFIGURED`. Groq remains an architectural adapter/fallback seam, not a live transport in this MVP. The existing RAG module is a foundation only and is not exposed as a product workflow yet.
 
 ## Architecture
 
@@ -96,20 +100,27 @@ Workflix begins as a modular monolith. This keeps deployment and transactions si
 | Quality | Ruff, pytest, ESLint, Prettier, Vitest, Testing Library |
 | Delivery | Docker Compose, Nginx, GitHub Actions |
 
-## Screenshots
+## Product experience
 
-The current frontend is an operational foundation page intended to validate brand direction, responsive behavior, and live API connectivity. Product screenshots for landing, login, employee home, training detail, document assistant, and dashboards are added with their corresponding phases.
+The production frontend includes a split-screen login, personalized employee discovery, authenticated learning player, multi-step quiz/result flow, admin analytics, training and quiz authoring, assignments, and people progress. It was visually checked at desktop and at a 390×844 mobile viewport.
 
 ## Demo
 
-After startup:
+After startup (default port):
 
 - Web: [http://localhost:5173](http://localhost:5173)
 - API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 - Liveness: [http://localhost:8000/health](http://localhost:8000/health)
 - Readiness: [http://localhost:8000/ready](http://localhost:8000/ready)
 
-Demo users are introduced with authentication and the professional NovaTech Solutions seed in Phase 2. No fake login is exposed in the foundation.
+NovaTech demo accounts use the same local-only password `Workflix@2026`:
+
+| Profile | Email |
+| --- | --- |
+| Administrator | `admin@workflix.demo` |
+| Employee | `employee@workflix.demo` |
+
+Five fictional employees, six published trainings, assignments, progress, and quizzes are seeded automatically when `DEMO_MODE=true`. The seed is idempotent.
 
 ## Getting Started
 
@@ -125,7 +136,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The backend waits for PostgreSQL, runs `alembic upgrade head`, and then starts FastAPI. The frontend waits for a healthy backend before starting Nginx.
+The backend waits for PostgreSQL, runs `alembic upgrade head`, applies the idempotent demo seed, and then starts FastAPI. The frontend waits for a healthy backend before starting Nginx.
 
 If port `5173` is already in use, choose another host port without editing Compose:
 
@@ -179,7 +190,7 @@ Never commit `.env` or use the included local credentials outside a development 
 
 ## Database
 
-The first migration enables `vector` and `pgcrypto`. Business tables are introduced in capability-focused migrations together with their application behavior and tests. Production startup never calls `create_all()`.
+The first migration enables `vector` and `pgcrypto`; the second owns the focused MVP schema. Production startup never calls `create_all()`.
 
 The initial relational model, ownership rules, and relationship diagram live in [docs/database.md](docs/database.md).
 
@@ -228,7 +239,7 @@ npm run test
 npm run build
 ```
 
-Cross-stack Playwright flows will live in `tests/` as the authentication and catalog workflows become available.
+The backend suite covers auth rotation/logout, RBAC, tenant isolation, training visibility, progress, PDFs, quizzes, AI mocks, and seed idempotency. The final validation also executes login, learning, quiz, and ADMIN flows against the Docker/PostgreSQL stack.
 
 ## Security
 
@@ -237,7 +248,7 @@ Cross-stack Playwright flows will live in `tests/` as the authentication and cat
 - Request IDs are sanitized before reuse.
 - Production error bodies never include Python tracebacks.
 - Logs exclude secrets and private content by design.
-- Tenant context will come from the verified principal, never from a client-selected `company_id`.
+- Tenant context comes from the verified principal, never from a client-selected `company_id`.
 - Semantic retrieval contracts require both company and user context before ranking.
 - AI-generated business content is reviewable and never auto-published.
 
@@ -296,12 +307,12 @@ workflix/
 
 ## Roadmap
 
-### MVP
+### Focused MVP — complete
 
 - Authentication, companies, users, refresh-token rotation, RBAC, and tenant isolation.
 - Content catalog, publishing, assignment, progress, and employee discovery.
 - Backend-corrected quizzes and basic dashboards.
-- Cloud AI training/quiz generation with human review and AI request observability.
+- Cloud Gemini training/quiz generation with human review and validated structured output.
 
 ### V2
 
@@ -317,4 +328,3 @@ Progress, decisions, known issues, and the next concrete phase are kept current 
 ## License
 
 Workflix is available under the [MIT License](LICENSE).
-
