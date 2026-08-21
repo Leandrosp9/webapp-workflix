@@ -1,5 +1,4 @@
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,11 +48,10 @@ class AuthService:
         token.revoked_at = now
         return await self._issue_tokens(user)
 
-    async def logout(self, *, user_id: UUID, raw_token: str) -> None:
+    async def logout(self, *, raw_token: str) -> None:
         await self._session.execute(
             update(RefreshToken)
             .where(
-                RefreshToken.user_id == user_id,
                 RefreshToken.token_hash == hash_refresh_token(raw_token),
                 RefreshToken.revoked_at.is_(None),
             )

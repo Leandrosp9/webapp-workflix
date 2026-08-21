@@ -18,8 +18,8 @@ async def refresh(payload: RefreshRequest, session: SessionDependency) -> TokenR
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Revoke a session")
-async def logout(payload: LogoutRequest, user: CurrentUser, session: SessionDependency) -> None:
-    await AuthService(session).logout(user_id=user.id, raw_token=payload.refresh_token)
+async def logout(payload: LogoutRequest, session: SessionDependency) -> None:
+    await AuthService(session).logout(raw_token=payload.refresh_token)
 
 
 @router.get("/me", response_model=AuthUser, summary="Read the current authenticated user")

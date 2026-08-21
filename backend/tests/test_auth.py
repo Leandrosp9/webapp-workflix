@@ -38,7 +38,6 @@ def test_login_me_refresh_and_logout(api: ApiContext) -> None:
 
     logout_response = api.client.post(
         "/api/v1/auth/logout",
-        headers={"Authorization": f"Bearer {rotated_tokens['access_token']}"},
         json={"refresh_token": rotated_tokens["refresh_token"]},
     )
     assert logout_response.status_code == 204
