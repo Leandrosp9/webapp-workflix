@@ -2,7 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, File, UploadFile, status
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 
 from app.api.dependencies import AdminUser, CurrentUser, EmployeeUser, SessionDependency
 from app.schemas.trainings import (
@@ -77,12 +77,16 @@ async def upload_training_pdf(
     return await TrainingService(session).store_pdf(training_id, admin.company_id, file)
 
 
-@router.get("/trainings/{training_id}/pdf", response_class=FileResponse)
+@router.get("/trainings/{training_id}/pdf", response_class=Response)
 async def download_training_pdf(
     training_id: UUID, user: CurrentUser, session: SessionDependency
-) -> FileResponse:
-    path = await TrainingService(session).pdf_path(training_id, user.company_id, user)
-    return FileResponse(path, media_type="application/pdf", filename=f"{training_id}.pdf")
+) -> Response:
+    document = await TrainingService(session).pdf_object(training_id, user.company_id, user)
+    return Response(
+        content=document.data,
+        media_type=document.content_type,
+        headers={"Content-Disposition": f'inline; filename="{training_id}.pdf"'},
+    )
 
 
 @router.get("/employee/trainings", response_model=list[TrainingResponse])

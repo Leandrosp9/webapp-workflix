@@ -17,11 +17,15 @@ class AppError(Exception):
     code: str
     message: str
     status_code: int = status.HTTP_400_BAD_REQUEST
+    headers: dict[str, str] | None = None
 
 
-def error_response(*, code: str, message: str, status_code: int) -> JSONResponse:
+def error_response(
+    *, code: str, message: str, status_code: int, headers: dict[str, str] | None = None
+) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
+        headers=headers,
         content={
             "error": {
                 "code": code,
@@ -35,7 +39,12 @@ def error_response(*, code: str, message: str, status_code: int) -> JSONResponse
 def install_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
-        return error_response(code=exc.code, message=exc.message, status_code=exc.status_code)
+        return error_response(
+            code=exc.code,
+            message=exc.message,
+            status_code=exc.status_code,
+            headers=exc.headers,
+        )
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:

@@ -1,6 +1,4 @@
-import asyncio
 from datetime import UTC, datetime
-from pathlib import Path
 from uuid import UUID
 
 from fastapi import UploadFile
@@ -10,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
 from app.core.errors import AppError
+from app.core.logging import get_logger
 from app.models import (
     Quiz,
     Role,
@@ -29,11 +28,21 @@ from app.schemas.trainings import (
     TrainingResponse,
     TrainingUpdate,
 )
+from app.storage import (
+    ObjectNotFoundError,
+    ObjectStorage,
+    StorageError,
+    StoredObject,
+    get_object_storage,
+)
+
+logger = get_logger(__name__)
 
 
 class TrainingService:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, storage: ObjectStorage | None = None) -> None:
         self._session = session
+        self._storage = storage or get_object_storage()
 
     @staticmethod
     def _response(
@@ -123,7 +132,13 @@ class TrainingService:
         await self._session.delete(training)
         await self._session.commit()
         if pdf_path:
-            await asyncio.to_thread(Path(pdf_path).unlink, missing_ok=True)
+            try:
+                await self._storage.delete(pdf_path)
+            except StorageError:
+                logger.warning(
+                    "training_object_cleanup_failed",
+                    extra={"training_id": str(training_id)},
+                )
 
     async def assign(
         self, training_id: UUID, company_id: UUID, payload: TrainingAssignmentCreate
@@ -306,24 +321,38 @@ class TrainingService:
             raise AppError(
                 code="INVALID_PDF", message="The uploaded file is not a valid PDF.", status_code=415
             )
-        directory = settings.upload_directory.resolve() / str(company_id)
-        destination = directory / f"{training_id}.pdf"
-        await asyncio.to_thread(directory.mkdir, parents=True, exist_ok=True)
-        await asyncio.to_thread(destination.write_bytes, data)
-        training.pdf_path = str(destination)
+        object_key = f"companies/{company_id}/trainings/{training_id}/material.pdf"
+        try:
+            await self._storage.put(object_key, data, content_type="application/pdf")
+        except StorageError as exc:
+            raise AppError(
+                code="STORAGE_UNAVAILABLE",
+                message="The document storage service is temporarily unavailable.",
+                status_code=503,
+            ) from exc
+        training.pdf_path = object_key
         training.type = TrainingType.PDF
         await self._session.commit()
         await self._session.refresh(training)
         return self._response(training)
 
-    async def pdf_path(self, training_id: UUID, company_id: UUID, user: User) -> Path:
+    async def pdf_object(self, training_id: UUID, company_id: UUID, user: User) -> StoredObject:
         if user.role == Role.ADMIN:
             training = await self._admin_training(training_id, company_id)
         else:
             training, _, _, _ = await self._employee_row(training_id, company_id, user.id)
-        if not training.pdf_path or not (path := Path(training.pdf_path)).is_file():
+        if not training.pdf_path:
             raise AppError(code="PDF_NOT_FOUND", message="PDF not found.", status_code=404)
-        return path
+        try:
+            return await self._storage.get(training.pdf_path)
+        except ObjectNotFoundError as exc:
+            raise AppError(code="PDF_NOT_FOUND", message="PDF not found.", status_code=404) from exc
+        except StorageError as exc:
+            raise AppError(
+                code="STORAGE_UNAVAILABLE",
+                message="The document storage service is temporarily unavailable.",
+                status_code=503,
+            ) from exc
 
     async def dashboard(self, company_id: UUID) -> AdminDashboardResponse:
         total_employees = await self._session.scalar(

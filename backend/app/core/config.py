@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +31,26 @@ class Settings(BaseSettings):
     file_storage_provider: Literal["local", "s3", "r2"] = "local"
     max_upload_size_mb: int = Field(default=25, ge=1, le=250)
     upload_directory: Path = Path("uploads")
+    s3_bucket: str | None = None
+    s3_region: str = "us-east-1"
+    s3_endpoint_url: str | None = None
+    s3_access_key_id: SecretStr | None = None
+    s3_secret_access_key: SecretStr | None = None
+    s3_force_path_style: bool = False
+    s3_server_side_encryption: Literal["AES256", "aws:kms"] | None = None
+    s3_kms_key_id: str | None = None
+
+    rate_limit_provider: Literal["memory", "redis"] = "memory"
+    redis_url: SecretStr = SecretStr("redis://localhost:6379/0")
+    rate_limit_login_per_minute: int = Field(default=10, ge=1, le=10_000)
+    rate_limit_refresh_per_minute: int = Field(default=30, ge=1, le=10_000)
+    rate_limit_ai_per_minute: int = Field(default=10, ge=1, le=10_000)
+    trust_proxy_headers: bool = False
+
+    secrets_manager_provider: Literal["env", "aws"] = "env"
+    aws_secret_id: str | None = None
+    aws_region: str = "us-east-1"
+    aws_secrets_endpoint_url: str | None = None
 
     ai_provider: str = "gemini"
     ai_fallback_provider: str | None = "groq"
@@ -47,6 +67,21 @@ class Settings(BaseSettings):
             raise ValueError("api_v1_prefix must start with '/'")
         return normalized
 
+    @field_validator("s3_server_side_encryption", mode="before")
+    @classmethod
+    def empty_optional_value_is_none(cls, value: object) -> object:
+        return None if value == "" else value
+
+    @model_validator(mode="after")
+    def validate_provider_configuration(self) -> "Settings":
+        if self.file_storage_provider in {"s3", "r2"} and not self.s3_bucket:
+            raise ValueError("s3_bucket is required for S3-compatible storage")
+        if self.s3_server_side_encryption == "aws:kms" and not self.s3_kms_key_id:
+            raise ValueError("s3_kms_key_id is required when using aws:kms encryption")
+        if self.secrets_manager_provider == "aws" and not self.aws_secret_id:
+            raise ValueError("aws_secret_id is required for AWS Secrets Manager")
+        return self
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
@@ -54,4 +89,7 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    from app.core.secrets import load_managed_secrets
+
+    load_managed_secrets()
     return Settings()  # type: ignore[call-arg]
