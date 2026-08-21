@@ -11,6 +11,7 @@ Workflix starts as a modular monolith with independently built frontend and back
 ```mermaid
 flowchart LR
     Browser[React web client] -->|REST /api/v1| API[FastAPI application]
+    API --> Redis[(Redis rate limits)]
     API --> Domain[Application services]
     Domain --> DB[(PostgreSQL + pgvector)]
     Domain --> Storage[File storage interface]
@@ -55,5 +56,4 @@ TanStack Query owns server state. Local component state owns transient interacti
 
 ## Deployment path
 
-The local and portfolio deployment topology uses three containers: static frontend, FastAPI backend, and PostgreSQL with pgvector. Background document processing begins behind an application interface and can move to a dedicated worker/queue when workload requires it.
-
+The local topology uses three containers: static frontend, FastAPI backend, and PostgreSQL with pgvector. The staging overlay adds Redis and private S3-compatible MinIO storage, while AWS Secrets Manager is read before configuration validation. Background PDF processing remains deliberately deferred behind application interfaces and can move to a dedicated worker/queue when workload requires it.
