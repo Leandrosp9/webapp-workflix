@@ -56,4 +56,4 @@ TanStack Query owns server state. Local component state owns transient interacti
 
 ## Deployment path
 
-The local topology uses three containers: static frontend, FastAPI backend, and PostgreSQL with pgvector. The staging overlay adds Redis and private S3-compatible MinIO storage, while AWS Secrets Manager is read before configuration validation. Background PDF processing remains deliberately deferred behind application interfaces and can move to a dedicated worker/queue when workload requires it.
+The local topology uses three containers: static frontend, FastAPI backend, and PostgreSQL with pgvector. The staging overlay adds Redis and private S3-compatible MinIO storage, while AWS Secrets Manager is read before configuration validation. PDF uploads schedule an in-process background pipeline with persistent states and explicit retry: object read → PyMuPDF pages → page-aware chunks → Gemini embeddings → pgvector rows. The scheduler boundary is intentionally replaceable; move it to a durable queue/worker before multi-replica or high-volume workloads.

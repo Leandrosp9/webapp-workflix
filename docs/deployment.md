@@ -53,6 +53,8 @@ MinIO in this overlay is single-node and appropriate for integration/staging val
 
 Copy `.env.example` to `.env` and replace every deployment secret. The included database password and JWT placeholder are suitable only for local development.
 
+Document intelligence uses `RAG_EMBEDDING_MODEL=gemini-embedding-2`, a schema-fixed `RAG_EMBEDDING_DIMENSIONS=768`, `RAG_MAX_PDF_PAGES`, and `RAG_RETRIEVAL_LIMIT`. `GEMINI_API_KEY` enables both embeddings and grounded answer generation. Without the key, upload/extraction still succeeds and the version remains `EXTRACTED` until an ADMIN requests reprocessing after configuration is available.
+
 ## Operational endpoints
 
 - `GET /health`: process liveness without dependency details.
@@ -67,3 +69,4 @@ Copy `.env.example` to `.env` and replace every deployment secret. The included 
 - Back up PostgreSQL and object storage independently and test restoration.
 - Keep `RATE_LIMIT_PROVIDER=redis`; the API fails closed with `503` if it cannot make a distributed limit decision.
 - Use `FILE_STORAGE_PROVIDER=s3` or `r2` before horizontal scaling and keep the bucket private.
+- Replace process-local document background tasks with a durable queue and idempotent worker before running multiple backend replicas; persistent states and the retry endpoint are recovery controls, not queue durability.

@@ -21,6 +21,10 @@ erDiagram
     QUESTION ||--o{ QUESTION_OPTION : offers
     USER ||--o{ QUIZ_ATTEMPT : makes
     USER ||--o{ REFRESH_TOKEN : owns
+    TRAINING ||--o| DOCUMENT : owns
+    DOCUMENT ||--o{ DOCUMENT_VERSION : versions
+    DOCUMENT_VERSION ||--o{ DOCUMENT_PAGE : extracts
+    DOCUMENT_VERSION ||--o{ DOCUMENT_CHUNK : indexes
 ```
 
 ## Core entities
@@ -42,7 +46,14 @@ erDiagram
 - `quizzes`, `questions`, and `question_options`: server-owned assessment definitions.
 - `quiz_attempts`: immutable aggregate score evidence. Correct answers remain server-owned.
 
-Document versions, embeddings, RAG records, learning paths, certificates, notifications, and audit tables remain V2 scope. The source modules for the future RAG boundary are preserved but do not own database tables in this MVP.
+### Document intelligence
+
+- `documents`: stable, company-scoped identity with one document per training.
+- `document_versions`: immutable file metadata, checksum, private object key, monotonic version number, processing state, counters, and safe error code.
+- `document_pages`: one-based extracted page text retained for traceability.
+- `document_chunks`: page-aware text plus 768-dimensional embedding provider/model metadata.
+
+Only the newest version of a document is eligible for retrieval, and it must be `READY`. The HNSW index uses `vector_cosine_ops` with `m=16` and `ef_construction=64`. Learning paths, certificates, notifications, acknowledgments, and audit tables remain later scope.
 
 ## Integrity strategy
 
@@ -53,4 +64,4 @@ Document versions, embeddings, RAG records, learning paths, certificates, notifi
 - Store refresh tokens only as hashes.
 - Use a vector index only after corpus size and query plans justify its parameters.
 
-Migration `20260821_0001` enables PostgreSQL extensions. Migration `20260821_0002` creates the complete focused MVP schema.
+Migration `20260821_0001` enables PostgreSQL extensions. Migration `20260821_0002` creates the focused MVP schema. Migration `20260821_0003` adds document versions, pages, chunks, and the HNSW vector index.

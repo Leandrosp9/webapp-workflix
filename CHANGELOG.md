@@ -20,6 +20,11 @@ All notable development changes are recorded here. This project follows the spir
 - Local and S3-compatible object-storage adapters with tenant-scoped private PDF keys.
 - AWS Secrets Manager bootstrap with an explicit allowlist and environment precedence.
 - Hardened staging Compose overlay with Redis, MinIO, private bucket bootstrap, and pinned images.
+- Immutable PDF document/version records with unique private object keys and SHA-256 checksums.
+- PyMuPDF page extraction, persistent processing states, safe failure codes, and ADMIN retry.
+- Gemini `gemini-embedding-2` adapter with task-specific query/document prefixes.
+- 768-dimensional pgvector chunks, HNSW cosine index, latest-version retrieval, and tenant/assignment filters.
+- Employee document questions with grounded Gemini answers, page/version sources, and prompt-injection isolation.
 
 - Product, architecture, database, security, and deployment documentation.
 - Architecture decision records for the frontend, backend, AI, multi-tenancy, and RAG foundations.

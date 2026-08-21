@@ -34,7 +34,11 @@ Login and refresh endpoints use fixed-window throttling. Staging uses one atomic
 
 ## AI and documents
 
-PDF uploads require the PDF MIME type, a `%PDF-` signature, and the configured size limit. Objects use company/training-prefixed keys in local or private S3-compatible storage. Downloads re-authorize the current user and assignment before retrieving bytes; no public object URL is returned. AI keys can come from the managed secret, Gemini drafts are schema-validated, and generated content requires an ADMIN to save or publish it. PDF extraction and RAG remain future scope.
+PDF uploads require the PDF MIME type, a `%PDF-` signature, and the configured size limit. Every version receives a new company/document/version-prefixed object key and SHA-256 checksum; old bytes are not overwritten. Downloads and status reads re-authorize the user and assignment before accessing the latest version, and no public object URL is returned.
+
+PyMuPDF extraction has a page cap, rejects password-protected or textless PDFs with safe codes, strips NUL bytes, and never logs document text. Retrieval requires the authenticated `company_id` and `user_id`, filters company, active principal, assignment, published training, requested document, and latest `READY` version before cosine ranking. PDF content is wrapped as untrusted evidence and the system prompt explicitly rejects instructions embedded in sources. Generated citations are validated against retrieved chunks before the API exposes document version, title, page, excerpt, and score.
+
+AI keys can come from the managed secret, generated output is schema-validated, and the RAG endpoint shares the protected AI rate-limit scope. Without `GEMINI_API_KEY`, extraction remains available but indexing and answers are not enabled.
 
 ## Staging secret handling
 

@@ -4,7 +4,7 @@
 
 Workflix is a multi-tenant corporate learning and knowledge platform designed to centralize training, procedures, documents, assessments, and evidence of progress in one measurable experience.
 
-> Project status: the focused Workflix MVP is implemented and runs end to end with real authentication, tenant isolation, learning workflows, quizzes, Gemini-assisted authoring, and NovaTech demo data.
+> Project status: the focused Workflix MVP and the first document-intelligence phase run end to end with authentication, tenant isolation, immutable PDF versions, page extraction, pgvector retrieval, cited answers, quizzes, and Gemini-assisted authoring.
 
 ## Overview
 
@@ -36,6 +36,9 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 - ARTICLE, VIDEO, and PDF training formats with draft/published workflow.
 - Authorized PDF upload/download with MIME, signature, and size validation.
 - Provider-neutral local/S3-compatible PDF storage with private tenant-scoped object keys.
+- Immutable PDF versions with checksums, page extraction, observable processing states, and ADMIN reprocessing.
+- Gemini cloud embeddings, 768-dimensional pgvector chunks, cosine retrieval, and HNSW indexing.
+- Employee questions over assigned PDFs with grounded answers and explicit document/page citations.
 - Employee home, catalog, player, assessment, correction, and result experiences.
 - Admin dashboard, training/quiz editor, assignment workflow, and employee management.
 - Gemini structured generation for reviewable training and quiz drafts.
@@ -53,7 +56,7 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 
 ### Intentionally deferred
 
-- PDF versioning, acknowledgment, extraction, pgvector indexing, and source-aware answers.
+- Durable external job queue/workers, OCR for image-only PDFs, and document acknowledgment evidence.
 - Learning paths, certificates, notifications, reports, and audit history.
 - Departments, positions, manager role, SSO, billing, and enterprise integrations.
 
@@ -71,7 +74,9 @@ The MVP includes:
 - ADMIN-only `/api/v1/ai/generate-training` and `/api/v1/ai/generate-quiz` endpoints;
 - Pydantic/JSON Schema validation before generated content reaches the editor.
 
-Tests inject a fake provider and never spend a real Gemini request. `GEMINI_API_KEY` is optional for the rest of the product; without it, generation returns an explicit `503 AI_NOT_CONFIGURED`. Groq remains an architectural adapter/fallback seam, not a live transport in this MVP. The existing RAG module is a foundation only and is not exposed as a product workflow yet.
+Tests inject fake providers and never spend a real Gemini request. `GEMINI_API_KEY` remains optional: PDF extraction finishes in `EXTRACTED` without it, while authoring and RAG return explicit configuration errors. When configured, `gemini-embedding-2` creates 768-dimensional document/query embeddings and the employee player exposes source-aware questions over the latest authorized `READY` version. Groq remains an architectural adapter/fallback seam for authoring, not a live embedding transport.
+
+PDF processing states are `UPLOADED`, `EXTRACTING`, `EXTRACTED`, `INDEXING`, `READY`, and `FAILED`. The current modular-monolith scheduler uses FastAPI background tasks and persistent state plus an ADMIN retry endpoint. A dedicated durable queue is the next operational step before high-volume or multi-replica processing.
 
 ## Architecture
 
@@ -199,7 +204,7 @@ On Windows, activate with `.venv\Scripts\Activate.ps1`.
 - application: `APP_ENV`, `APP_VERSION`, `DEMO_MODE`, `LOG_LEVEL`;
 - data: `DATABASE_URL`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`;
 - authentication: `JWT_SECRET`, access lifetime, and refresh lifetime;
-- AI: primary/fallback provider, Gemini/Groq keys, and models;
+- AI/RAG: primary/fallback provider, Gemini/Groq keys, generation and embedding models, embedding dimensions, page cap, and retrieval limit;
 - files: local/S3 provider, bucket, endpoint, credentials, path style, encryption, and upload limit;
 - request protection: Redis URL and limits for login, refresh, and AI generation;
 - managed secrets: provider, secret identifier, region, and optional endpoint;
@@ -209,7 +214,7 @@ Never commit `.env` or use the included local credentials outside a development 
 
 ## Database
 
-The first migration enables `vector` and `pgcrypto`; the second owns the focused MVP schema. Production startup never calls `create_all()`.
+The first migration enables `vector` and `pgcrypto`; the second owns the focused MVP schema; `20260821_0003` adds documents, immutable versions, extracted pages, vector chunks, and the HNSW cosine index. Production startup never calls `create_all()`.
 
 The initial relational model, ownership rules, and relationship diagram live in [docs/database.md](docs/database.md).
 
@@ -265,7 +270,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The backend suite covers auth rotation/logout, RBAC, tenant isolation, training visibility, progress, PDFs, quizzes, AI mocks, rate limiting, managed secrets, object storage, and seed idempotency. Playwright executes login, learning, quiz/result, ADMIN, and mobile-overflow flows against the Docker/PostgreSQL stack in CI.
+The backend suite covers auth rotation/logout, RBAC, tenant isolation, training visibility, progress, real PDF extraction/versioning, page/chunk persistence, cited RAG answers, prompt-injection boundaries, quizzes, AI mocks, rate limiting, managed secrets, object storage, and seed idempotency. Playwright executes login, learning, quiz/result, ADMIN, and mobile-overflow flows against the Docker/PostgreSQL stack in CI.
 
 ## Security
 
@@ -280,6 +285,8 @@ The backend suite covers auth rotation/logout, RBAC, tenant isolation, training 
 - Authentication and AI abuse controls use atomic Redis windows in staging.
 - Staging secrets are loaded from an allowlisted AWS Secrets Manager JSON payload.
 - PDFs use private, tenant-prefixed S3-compatible objects and are returned only after authorization.
+- Vector retrieval derives company and principal from the verified user, applies assignment/publish filters before ranking, and only searches the latest `READY` document version.
+- Document text is explicitly treated as untrusted evidence; commands found inside a PDF never become system instructions.
 
 See [docs/security.md](docs/security.md) for the complete baseline and planned controls.
 
@@ -317,6 +324,9 @@ workflix/
 │   │   │   ├── chunker.py
 │   │   │   ├── document_processor.py
 │   │   │   ├── embeddings.py
+│   │   │   ├── extractor.py
+│   │   │   ├── jobs.py
+│   │   │   ├── providers/gemini.py
 │   │   │   └── retriever.py
 │   │   ├── repositories/
 │   │   ├── schemas/
@@ -346,9 +356,13 @@ workflix/
 - Backend-corrected quizzes and basic dashboards.
 - Cloud Gemini training/quiz generation with human review and validated structured output.
 
+### Document intelligence V1 — complete
+
+- Immutable PDF versions, page extraction, embeddings, pgvector retrieval, and cited answers.
+
 ### V2
 
-- PDF extraction, document versions, acknowledgments, RAG, and source-aware answers.
+- Durable document queue/workers, OCR, and acknowledgment evidence.
 - Learning paths, certificates, manager analytics, and richer reports.
 
 ### V3
