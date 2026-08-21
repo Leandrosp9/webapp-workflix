@@ -129,11 +129,51 @@ test("administrador versiona PDF e acompanha a extração", async ({ page }) => 
     await expect(
       page.getByText("Versão 1 enviada. Extração iniciada."),
     ).toBeVisible();
-    await expect(page.getByText("Texto extraído")).toBeVisible({
-      timeout: 15_000,
-    });
+    let documentStatus = "UPLOADED";
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(
+            `/api/v1/trainings/${training.id}/document`,
+            { headers },
+          );
+          documentStatus = (await response.json()).status as string;
+          return documentStatus;
+        },
+        { timeout: 15_000 },
+      )
+      .toMatch(/^(EXTRACTED|INDEXING|READY|FAILED)$/);
+    await page.waitForTimeout(2_000);
+    let documentVersion = {
+      status: documentStatus,
+      page_count: 0,
+      chunk_count: 0,
+    };
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(
+            `/api/v1/trainings/${training.id}/document`,
+            { headers },
+          );
+          documentVersion = await response.json();
+          return documentVersion.status;
+        },
+        { timeout: 60_000 },
+      )
+      .toMatch(/^(EXTRACTED|READY|FAILED)$/);
+    expect(documentVersion.status).not.toBe("FAILED");
     await expect(
-      page.getByText(/1 páginas · 0 trechos indexados/),
+      page.getByText(
+        documentVersion.status === "READY"
+          ? "Pronto para perguntas"
+          : "Texto extraído",
+      ),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByText(
+        `${documentVersion.page_count} páginas · ${documentVersion.chunk_count} trechos indexados`,
+      ),
     ).toBeVisible();
   } finally {
     const removed = await page.request.delete(

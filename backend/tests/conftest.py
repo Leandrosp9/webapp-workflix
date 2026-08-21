@@ -10,6 +10,8 @@ os.environ.setdefault(
     "DATABASE_URL", "postgresql+psycopg://workflix:workflix@localhost/workflix_test"
 )
 os.environ.setdefault("JWT_SECRET", "test-secret-that-is-at-least-32-characters")
+os.environ["GEMINI_API_KEY"] = ""
+os.environ["GROQ_API_KEY"] = ""
 os.environ.setdefault("RATE_LIMIT_LOGIN_PER_MINUTE", "10000")
 os.environ.setdefault("RATE_LIMIT_REFRESH_PER_MINUTE", "10000")
 os.environ.setdefault("RATE_LIMIT_AI_PER_MINUTE", "10000")
