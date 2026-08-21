@@ -36,7 +36,6 @@ Phase 1 — Foundation is complete. The next implementation phase is Phase 2 —
 - No external AI credentials are configured; no AI call is required in Phase 1.
 - The foundation deliberately has no business tables yet. The first domain migration belongs to Phase 2 and will introduce companies, users, roles, departments, and positions together with their invariants.
 - The validation machine already had port `5173` allocated, so the complete container smoke test used the supported `FRONTEND_PORT=5174` override. The documented default remains `5173`.
-- Git was initialized, but this managed workspace denied writes to `.git/index`; commits could not be created in this session.
 
 ## Decisions
 
