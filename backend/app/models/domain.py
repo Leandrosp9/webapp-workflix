@@ -4,6 +4,7 @@ from datetime import date, datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
+from pgvector.sqlalchemy import VECTOR
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -39,9 +40,19 @@ class TrainingStatus(StrEnum):
     PUBLISHED = "PUBLISHED"
 
 
+class DocumentStatus(StrEnum):
+    UPLOADED = "UPLOADED"
+    EXTRACTING = "EXTRACTING"
+    EXTRACTED = "EXTRACTED"
+    INDEXING = "INDEXING"
+    READY = "READY"
+    FAILED = "FAILED"
+
+
 role_enum = Enum(Role, native_enum=False, length=16, validate_strings=True)
 training_type_enum = Enum(TrainingType, native_enum=False, length=16, validate_strings=True)
 training_status_enum = Enum(TrainingStatus, native_enum=False, length=16, validate_strings=True)
+document_status_enum = Enum(DocumentStatus, native_enum=False, length=16, validate_strings=True)
 
 
 class TimestampMixin:
@@ -65,6 +76,9 @@ class Company(Base):
 
     users: Mapped[list[User]] = relationship(back_populates="company", cascade="all, delete-orphan")
     trainings: Mapped[list[Training]] = relationship(
+        back_populates="company", cascade="all, delete-orphan"
+    )
+    documents: Mapped[list[Document]] = relationship(
         back_populates="company", cascade="all, delete-orphan"
     )
 
@@ -150,6 +164,159 @@ class Training(TimestampMixin, Base):
     quiz: Mapped[Quiz | None] = relationship(
         back_populates="training", cascade="all, delete-orphan", uselist=False
     )
+    document: Mapped[Document | None] = relationship(
+        back_populates="training", cascade="all, delete-orphan", uselist=False
+    )
+
+
+class Document(TimestampMixin, Base):
+    __tablename__ = "documents"
+    __table_args__ = (
+        UniqueConstraint("training_id", name="uq_documents_one_document_per_training"),
+        Index("ix_documents_company_created", "company_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    training_id: Mapped[UUID] = mapped_column(
+        ForeignKey("trainings.id", ondelete="CASCADE"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(180), nullable=False)
+    created_by: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+
+    company: Mapped[Company] = relationship(back_populates="documents")
+    training: Mapped[Training] = relationship(back_populates="document")
+    versions: Mapped[list[DocumentVersion]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="DocumentVersion.version_number.desc()",
+    )
+
+
+class DocumentVersion(TimestampMixin, Base):
+    __tablename__ = "document_versions"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id",
+            "version_number",
+            name="uq_document_versions_document_version_number",
+        ),
+        CheckConstraint("version_number > 0", name="positive_version_number"),
+        CheckConstraint("size_bytes > 0", name="positive_size_bytes"),
+        CheckConstraint("page_count >= 0", name="non_negative_page_count"),
+        CheckConstraint("chunk_count >= 0", name="non_negative_chunk_count"),
+        CheckConstraint(
+            "status IN ('UPLOADED', 'EXTRACTING', 'EXTRACTED', 'INDEXING', 'READY', 'FAILED')",
+            name="valid_status",
+        ),
+        Index("ix_document_versions_company_status", "company_id", "status"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    document_id: Mapped[UUID] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    object_key: Mapped[str] = mapped_column(String(500), nullable=False, unique=True)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[DocumentStatus] = mapped_column(
+        document_status_enum, nullable=False, default=DocumentStatus.UPLOADED
+    )
+    page_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_code: Mapped[str | None] = mapped_column(String(80))
+    created_by: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    document: Mapped[Document] = relationship(back_populates="versions")
+    pages: Mapped[list[DocumentPage]] = relationship(
+        back_populates="document_version",
+        cascade="all, delete-orphan",
+        order_by="DocumentPage.page_number",
+    )
+    chunks: Mapped[list[DocumentChunk]] = relationship(
+        back_populates="document_version", cascade="all, delete-orphan"
+    )
+
+
+class DocumentPage(Base):
+    __tablename__ = "document_pages"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_version_id",
+            "page_number",
+            name="uq_document_pages_document_page_number",
+        ),
+        CheckConstraint("page_number > 0", name="positive_page_number"),
+        Index("ix_document_pages_company_version", "company_id", "document_version_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
+    )
+    document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    document_version: Mapped[DocumentVersion] = relationship(back_populates="pages")
+
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_version_id",
+            "chunk_index",
+            name="uq_document_chunks_document_chunk_index",
+        ),
+        CheckConstraint("page_number > 0", name="positive_chunk_page_number"),
+        CheckConstraint("chunk_index >= 0", name="non_negative_chunk_index"),
+        Index("ix_document_chunks_company_version", "company_id", "document_version_id"),
+        Index(
+            "ix_document_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+            postgresql_with={"m": 16, "ef_construction": 64},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
+    )
+    document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(VECTOR(768), nullable=False)
+    embedding_provider: Mapped[str] = mapped_column(String(50), nullable=False)
+    embedding_model: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    document_version: Mapped[DocumentVersion] = relationship(back_populates="chunks")
 
 
 class TrainingAssignment(Base):

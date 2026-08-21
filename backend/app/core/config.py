@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     ai_fallback_provider: str | None = "groq"
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-2.5-flash"
+    rag_embedding_model: str = "gemini-embedding-2"
+    rag_embedding_dimensions: int = Field(default=768, ge=768, le=768)
+    rag_max_pdf_pages: int = Field(default=500, ge=1, le=5000)
+    rag_retrieval_limit: int = Field(default=6, ge=1, le=12)
     groq_api_key: SecretStr | None = None
     groq_model: str | None = None
 

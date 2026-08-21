@@ -2,6 +2,11 @@
 
 from app.models.domain import (
     Company,
+    Document,
+    DocumentChunk,
+    DocumentPage,
+    DocumentStatus,
+    DocumentVersion,
     Question,
     QuestionOption,
     Quiz,
@@ -18,6 +23,11 @@ from app.models.domain import (
 
 __all__ = [
     "Company",
+    "Document",
+    "DocumentChunk",
+    "DocumentPage",
+    "DocumentStatus",
+    "DocumentVersion",
     "Question",
     "QuestionOption",
     "Quiz",

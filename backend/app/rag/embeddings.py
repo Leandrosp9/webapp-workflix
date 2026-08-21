@@ -1,9 +1,15 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from enum import StrEnum
 
 
 class EmbeddingError(Exception):
     """Embedding generation or validation failed."""
+
+
+class EmbeddingTask(StrEnum):
+    DOCUMENT = "DOCUMENT"
+    QUERY = "QUERY"
 
 
 class EmbeddingProvider(ABC):
@@ -12,7 +18,13 @@ class EmbeddingProvider(ABC):
     dimensions: int
 
     @abstractmethod
-    async def embed(self, texts: Sequence[str]) -> list[list[float]]:
+    async def embed(
+        self,
+        texts: Sequence[str],
+        *,
+        task: EmbeddingTask = EmbeddingTask.DOCUMENT,
+        titles: Sequence[str] | None = None,
+    ) -> list[list[float]]:
         """Create cloud-hosted embeddings for non-empty text values."""
 
 

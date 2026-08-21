@@ -3,7 +3,7 @@ import json
 from io import BytesIO
 
 import pytest
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.rate_limit import MemoryRateLimiter, RedisRateLimiter, get_rate_limiter
 from app.core.secrets import AWSSecretsManagerLoader, load_managed_secrets
 from app.main import app
@@ -12,6 +12,16 @@ from app.storage.local import LocalObjectStorage
 from app.storage.s3 import S3ObjectStorage
 
 from conftest import ApiContext
+
+
+def test_rag_embedding_dimensions_accept_the_environment_string(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("RAG_EMBEDDING_DIMENSIONS", "768")
+
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+
+    assert settings.rag_embedding_dimensions == 768
 
 
 def test_memory_rate_limiter_enforces_a_fixed_window() -> None:

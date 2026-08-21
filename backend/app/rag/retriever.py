@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
-from app.rag.embeddings import EmbeddingProvider, validate_embeddings
+from app.rag.embeddings import EmbeddingProvider, EmbeddingTask, validate_embeddings
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,7 +56,7 @@ class Retriever:
         self._repository = repository
 
     async def retrieve(self, query: RetrievalQuery) -> list[RetrievedChunk]:
-        embeddings = await self._embedding_provider.embed([query.text])
+        embeddings = await self._embedding_provider.embed([query.text], task=EmbeddingTask.QUERY)
         validate_embeddings(
             texts=[query.text],
             embeddings=embeddings,

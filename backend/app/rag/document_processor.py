@@ -6,7 +6,7 @@ from typing import Protocol
 from uuid import UUID
 
 from app.rag.chunker import DocumentChunker, PageText
-from app.rag.embeddings import EmbeddingProvider, validate_embeddings
+from app.rag.embeddings import EmbeddingProvider, EmbeddingTask, validate_embeddings
 
 
 class ProcessingOutcome(StrEnum):
@@ -94,7 +94,7 @@ class DocumentProcessor:
         pages = self._extractor.extract(pdf_bytes)
         chunks = self._chunker.chunk(pages)
         texts = [chunk.text for chunk in chunks]
-        embeddings = await self._embedding_provider.embed(texts)
+        embeddings = await self._embedding_provider.embed(texts, task=EmbeddingTask.DOCUMENT)
         validate_embeddings(
             texts=texts,
             embeddings=embeddings,

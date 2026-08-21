@@ -1,9 +1,28 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.models import TrainingStatus, TrainingType
+from app.models import DocumentStatus, TrainingStatus, TrainingType
+
+
+class DocumentVersionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    document_id: UUID
+    version_number: int
+    original_filename: str
+    content_type: str
+    size_bytes: int
+    checksum: str
+    status: DocumentStatus
+    page_count: int
+    chunk_count: int
+    error_code: str | None
+    created_at: datetime
+    updated_at: datetime
+    processed_at: datetime | None
 
 
 class TrainingCreate(BaseModel):
@@ -52,6 +71,7 @@ class TrainingResponse(BaseModel):
     assigned_at: datetime | None = None
     due_date: date | None = None
     has_quiz: bool = False
+    document_version: DocumentVersionResponse | None = None
 
 
 class TrainingAssignmentCreate(BaseModel):
