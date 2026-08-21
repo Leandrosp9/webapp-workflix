@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Workflix">
+  <defs>
+    <linearGradient id="g" x1="6" y1="8" x2="58" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6ee7f9"/>
+      <stop offset="1" stop-color="#7c5cff"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="17" fill="#0d1220"/>
+  <path d="M14 18l8 29h8l4-15 4 15h8l8-29h-9l-4 17-4-17h-7l-4 17-4-17z" fill="url(#g)"/>
+</svg>
+
