@@ -11,10 +11,15 @@ const EmployeeHomePage = lazy(() => import("../pages/EmployeeHomePage"));
 const CatalogPage = lazy(() => import("../pages/CatalogPage"));
 const TrainingPlayerPage = lazy(() => import("../pages/TrainingPlayerPage"));
 const QuizPage = lazy(() => import("../pages/QuizPage"));
+const LearningPathsPage = lazy(() => import("../pages/LearningPathsPage"));
+const LearningPathDetailPage = lazy(() => import("../pages/LearningPathDetailPage"));
+const CertificatesPage = lazy(() => import("../pages/CertificatesPage"));
 const AdminDashboardPage = lazy(() => import("../pages/admin/AdminDashboardPage"));
 const AdminTrainingsPage = lazy(() => import("../pages/admin/AdminTrainingsPage"));
 const AdminTrainingEditorPage = lazy(() => import("../pages/admin/AdminTrainingEditorPage"));
 const AdminUsersPage = lazy(() => import("../pages/admin/AdminUsersPage"));
+const AdminLearningPathsPage = lazy(() => import("../pages/admin/AdminLearningPathsPage"));
+const AdminReportsPage = lazy(() => import("../pages/admin/AdminReportsPage"));
 
 function RouteFallback() {
   return (
@@ -54,6 +59,9 @@ function ApplicationRoutes() {
           <Route element={<Shell />}>
             <Route path="/app" element={<EmployeeHomePage />} />
             <Route path="/app/catalog" element={<CatalogPage />} />
+            <Route path="/app/paths" element={<LearningPathsPage />} />
+            <Route path="/app/paths/:pathId" element={<LearningPathDetailPage />} />
+            <Route path="/app/certificates" element={<CertificatesPage />} />
             <Route path="/app/training/:trainingId" element={<TrainingPlayerPage />} />
             <Route path="/app/training/:trainingId/quiz" element={<QuizPage />} />
           </Route>
@@ -64,6 +72,8 @@ function ApplicationRoutes() {
             <Route path="/admin/trainings" element={<AdminTrainingsPage />} />
             <Route path="/admin/trainings/:trainingId" element={<AdminTrainingEditorPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/paths" element={<AdminLearningPathsPage />} />
+            <Route path="/admin/reports" element={<AdminReportsPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />

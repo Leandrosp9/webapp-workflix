@@ -4,7 +4,7 @@
 
 Workflix is a multi-tenant corporate learning and knowledge platform designed to centralize training, procedures, documents, assessments, and evidence of progress in one measurable experience.
 
-> Project status: the focused Workflix MVP and document-intelligence V2 run end to end with authentication, tenant isolation, immutable PDF versions, hybrid OCR, versioned acknowledgement evidence, pgvector retrieval, cited answers, quizzes, and Gemini-assisted authoring.
+> Project status: the focused Workflix MVP, document-intelligence V2, and learning-management V2+ run end to end with tenant isolation, immutable PDF evidence, ordered learning paths, verifiable certificates, exports, and management analytics.
 
 ## Overview
 
@@ -44,6 +44,10 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 - Employee questions over assigned PDFs with grounded answers and explicit document/page citations.
 - Employee home, catalog, player, assessment, correction, and result experiences.
 - Admin dashboard, training/quiz editor, assignment workflow, and employee management.
+- Ordered learning paths with required/optional steps, sequential availability, aggregate progress, publishing validation, and bulk assignment.
+- Automatic idempotent certificates with immutable identity snapshots, unique public verification codes, and authenticated ReportLab PDF downloads.
+- Tenant-scoped management analytics for completion, overdue work, learning hours, paths, and certificates.
+- UTF-8 CSV exports for assignment progress and certificate evidence, including spreadsheet-formula injection protection.
 - Gemini structured generation for reviewable training and quiz drafts.
 - Idempotent NovaTech demo seed with six local SVG training covers.
 - FastAPI application factory with versioned routes and OpenAPI documentation.
@@ -59,7 +63,7 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 
 ### Intentionally deferred
 
-- Learning paths, certificates, notifications, richer reports, and general audit history.
+- Notifications and general audit history.
 - Departments, positions, manager role, SSO, billing, and enterprise integrations.
 
 ## AI Features
@@ -107,7 +111,7 @@ Workflix begins as a modular monolith with a separately scalable document-worker
 | Web         | React 19, Vite, TypeScript, React Router, TanStack Query            |
 | UI          | Tailwind CSS, Lucide React, Framer Motion                           |
 | Forms       | React Hook Form, Zod                                                |
-| API         | Python 3.13, FastAPI, Pydantic Settings, PyMuPDF, Tesseract OCR      |
+| API         | Python 3.13, FastAPI, Pydantic, PyMuPDF, Tesseract OCR, ReportLab    |
 | Persistence | SQLAlchemy 2.x, Alembic, psycopg                                    |
 | Data        | PostgreSQL 17, pgvector                                             |
 | Quality     | Ruff, pytest, ESLint, Prettier, Vitest, Testing Library, Playwright |
@@ -115,7 +119,7 @@ Workflix begins as a modular monolith with a separately scalable document-worker
 
 ## Product experience
 
-The production frontend includes a split-screen login, personalized employee discovery, authenticated learning player, multi-step quiz/result flow, admin analytics, training and quiz authoring, assignments, and people progress. Playwright continuously checks the employee, ADMIN, and 390×844 mobile journeys.
+The production frontend includes personalized discovery, ordered employee paths, certificates, a learning player, quizzes, management analytics, CSV exports, content authoring, assignments, and people progress. Playwright continuously checks the employee, ADMIN, certificate, PDF, and 390×844 mobile journeys.
 
 ## Demo
 
@@ -221,7 +225,7 @@ Never commit `.env` or use the included local credentials outside a development 
 
 ## Database
 
-The first migration enables `vector` and `pgcrypto`; the second owns the focused MVP schema; `20260821_0003` adds document intelligence; `20260821_0004` adds the durable processing queue; and `20260822_0005` adds OCR provenance and PDF acknowledgements. Production startup never calls `create_all()`.
+The first migration enables `vector` and `pgcrypto`; the second owns the focused MVP schema; `20260821_0003` adds document intelligence; `20260821_0004` adds the durable processing queue; `20260822_0005` adds OCR provenance and PDF acknowledgements; and `20260822_0006` adds paths and certificates. Production startup never calls `create_all()`.
 
 The initial relational model, ownership rules, and relationship diagram live in [docs/database.md](docs/database.md).
 
@@ -277,7 +281,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The backend suite covers auth rotation/logout, RBAC, tenant isolation, training visibility, progress, hybrid OCR, versioned acknowledgement evidence, real PDF extraction/versioning, page/chunk persistence, cited RAG answers, prompt-injection boundaries, quizzes, AI mocks, rate limiting, managed secrets, object storage, and seed idempotency. Playwright executes login, learning, quiz/result, PDF processing, ADMIN, and mobile-overflow flows against the Docker/PostgreSQL stack in CI.
+The backend suite covers auth, RBAC, tenant isolation, paths, certificate idempotency/PDFs, analytics/exports, progress, OCR, acknowledgement evidence, PDF versioning, RAG, quizzes, AI mocks, infrastructure hardening, and seed idempotency. Playwright executes login, learning, path/certificate, quiz/result, PDF processing, ADMIN/reporting, and mobile-overflow flows against Docker/PostgreSQL in CI.
 
 ## Security
 
@@ -374,13 +378,13 @@ workflix/
 
 - Selective OCR, extraction provenance, version-specific acknowledgement evidence, and ADMIN acknowledgement reporting.
 
-### V2+
+### Learning management V2+ — complete
 
-- Learning paths, certificates, manager analytics, and richer reports.
+- Ordered paths, sequential employee progress, verifiable PDF certificates, management analytics, and CSV exports.
 
 ### V3
 
-- Enterprise integrations, advanced notifications, billing, mobile refinements, and deployment options.
+- Enterprise integrations, audit history, advanced notifications, billing, mobile refinements, and deployment options.
 
 Progress, decisions, known issues, and the next concrete phase are kept current in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 

@@ -33,6 +33,7 @@ flowchart LR
 - `ai`: provider-neutral generation, structured output, fallback, and usage observation.
 - `rag`: extraction, chunking, embedding, indexing, retrieval, and grounded answer orchestration.
 - `storage`: provider-neutral document persistence.
+- `services/learning_paths`, `services/certificates`, and `services/reports`: ordered learning workflows, immutable completion evidence/PDF rendering, and read-only management projections.
 
 Routers do not contain persistence or business rules. Application services coordinate domain rules and transactions. Repositories encapsulate reusable persistence queries where they improve clarity.
 
@@ -61,3 +62,5 @@ TanStack Query owns server state. Local component state owns transient interacti
 The local topology separates the static frontend, FastAPI API, document worker, and PostgreSQL/pgvector. The staging overlay adds Redis and private S3-compatible MinIO storage, while AWS Secrets Manager is read before configuration validation. PDF uploads atomically persist an immutable version and a durable job. Any worker replica may claim it through PostgreSQL row locking and a renewable lease, then execute object read → native PyMuPDF extraction → selective Tesseract OCR → page-aware chunks → Gemini embeddings → pgvector rows. Transient failures use bounded exponential retry; permanent and exhausted failures enter a dead-letter state that an ADMIN can explicitly requeue.
 
 Employee acknowledgements are synchronous domain transactions, not worker jobs. The service authorizes the current assignment, locks and verifies the latest document version, and inserts an idempotent evidence snapshot. A newer version never mutates earlier evidence; it creates a new pending acknowledgement state.
+
+Learning-path assignment is also synchronous: it creates the path assignment and any missing underlying training assignments in one transaction. Progress completion and passing quizzes flush their progress change before evaluating eligible published paths. The database uniqueness rule on employee/path makes certificate issuance idempotent, while the certificate snapshots names, workload, issue time, and verification code. PDF rendering is stateless and happens only after tenant/principal authorization.

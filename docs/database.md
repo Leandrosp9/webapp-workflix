@@ -15,6 +15,13 @@ erDiagram
     TRAINING ||--o{ TRAINING_ASSIGNMENT : targets
     USER ||--o{ USER_PROGRESS : tracks
     TRAINING ||--o{ USER_PROGRESS : measures
+    COMPANY ||--o{ LEARNING_PATH : owns
+    LEARNING_PATH ||--o{ LEARNING_PATH_ITEM : orders
+    TRAINING ||--o{ LEARNING_PATH_ITEM : composes
+    LEARNING_PATH ||--o{ LEARNING_PATH_ASSIGNMENT : targets
+    USER ||--o{ LEARNING_PATH_ASSIGNMENT : receives
+    LEARNING_PATH ||--o{ CERTIFICATE : certifies
+    USER ||--o{ CERTIFICATE : earns
 
     TRAINING ||--o| QUIZ : assesses
     QUIZ ||--o{ QUESTION : contains
@@ -44,11 +51,15 @@ erDiagram
 - `trainings`: `ARTICLE`, `VIDEO`, or `PDF` content with `DRAFT`/`PUBLISHED` lifecycle.
 - `training_assignments`: employee targeting with optional due date and a uniqueness constraint per employee/training.
 - `user_progress`: per-user percentage and started/completed timestamps.
+- `learning_paths`: company-scoped `DRAFT`/`PUBLISHED` journeys with immutable content order after publication.
+- `learning_path_items`: unique ordered training steps, marked required or optional.
+- `learning_path_assignments`: employee targeting with optional due date; assignment also creates the underlying training assignments used by the player.
 
 ### Assessment and proof
 
 - `quizzes`, `questions`, and `question_options`: server-owned assessment definitions.
 - `quiz_attempts`: immutable aggregate score evidence. Correct answers remain server-owned.
+- `certificates`: immutable employee/company/path snapshots, workload, issue timestamp, and a high-entropy public verification code, unique per employee/path.
 
 ### Document intelligence
 
@@ -59,7 +70,7 @@ erDiagram
 - `document_processing_jobs`: one durable job per version with claim lease, owner, attempt budget, retry availability, completion, and safe failure code.
 - `document_acknowledgements`: immutable employee, attestation, filename, version, checksum, and timestamp snapshots, unique per employee/version.
 
-Only the newest version of a document is eligible for retrieval, and it must be `READY`. The HNSW index uses `vector_cosine_ops` with `m=16` and `ef_construction=64`. A new document version leaves earlier acknowledgement rows untouched and becomes pending for every assigned employee. Learning paths, certificates, notifications, and general audit tables remain later scope.
+Only the newest version of a document is eligible for retrieval, and it must be `READY`. The HNSW index uses `vector_cosine_ops` with `m=16` and `ef_construction=64`. A new document version leaves earlier acknowledgement rows untouched and becomes pending for every assigned employee. Notifications and general audit tables remain later scope.
 
 ## Integrity strategy
 
@@ -70,4 +81,4 @@ Only the newest version of a document is eligible for retrieval, and it must be 
 - Store refresh tokens only as hashes.
 - Use a vector index only after corpus size and query plans justify its parameters.
 
-Migration `20260821_0001` enables PostgreSQL extensions. Migration `20260821_0002` creates the focused MVP schema. Migration `20260821_0003` adds document versions, pages, chunks, and the HNSW vector index. Migration `20260821_0004` adds durable document-processing jobs and claim indexes. Migration `20260822_0005` adds OCR provenance and immutable document acknowledgements.
+Migration `20260821_0001` enables PostgreSQL extensions. Migration `20260821_0002` creates the focused MVP schema. Migration `20260821_0003` adds document versions, pages, chunks, and the HNSW vector index. Migration `20260821_0004` adds durable document-processing jobs and claim indexes. Migration `20260822_0005` adds OCR provenance and immutable document acknowledgements. Migration `20260822_0006` adds learning paths, ordered items, path assignments, and certificates.

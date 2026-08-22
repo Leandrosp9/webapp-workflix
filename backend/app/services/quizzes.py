@@ -27,6 +27,7 @@ from app.schemas.quizzes import (
     QuizQuestionPublic,
     QuizSubmission,
 )
+from app.services.certificates import CertificateService
 
 
 class QuizService:
@@ -244,3 +245,7 @@ class QuizService:
             progress.progress_percent = 100
             progress.started_at = progress.started_at or now
             progress.completed_at = progress.completed_at or now
+        await self._session.flush()
+        await CertificateService(self._session).issue_eligible(
+            company_id=company_id, user_id=employee_id
+        )

@@ -110,3 +110,20 @@ export async function downloadPdf(trainingId: string, retry = true): Promise<voi
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
+
+export async function downloadFile(path: string, filename: string, retry = true): Promise<void> {
+  const headers = new Headers();
+  const accessToken = sessionTokens.access();
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers });
+  if (response.status === 401 && retry && (await refreshAccessToken())) {
+    return downloadFile(path, filename, false);
+  }
+  if (!response.ok) throw await errorFrom(response);
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}

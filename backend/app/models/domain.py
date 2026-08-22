@@ -40,6 +40,11 @@ class TrainingStatus(StrEnum):
     PUBLISHED = "PUBLISHED"
 
 
+class LearningPathStatus(StrEnum):
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+
+
 class DocumentStatus(StrEnum):
     UPLOADED = "UPLOADED"
     EXTRACTING = "EXTRACTING"
@@ -60,6 +65,9 @@ class DocumentJobStatus(StrEnum):
 role_enum = Enum(Role, native_enum=False, length=16, validate_strings=True)
 training_type_enum = Enum(TrainingType, native_enum=False, length=16, validate_strings=True)
 training_status_enum = Enum(TrainingStatus, native_enum=False, length=16, validate_strings=True)
+learning_path_status_enum = Enum(
+    LearningPathStatus, native_enum=False, length=16, validate_strings=True
+)
 document_status_enum = Enum(DocumentStatus, native_enum=False, length=16, validate_strings=True)
 document_job_status_enum = Enum(
     DocumentJobStatus, native_enum=False, length=16, validate_strings=True
@@ -90,6 +98,9 @@ class Company(Base):
         back_populates="company", cascade="all, delete-orphan"
     )
     documents: Mapped[list[Document]] = relationship(
+        back_populates="company", cascade="all, delete-orphan"
+    )
+    learning_paths: Mapped[list[LearningPath]] = relationship(
         back_populates="company", cascade="all, delete-orphan"
     )
 
@@ -493,6 +504,119 @@ class UserProgress(Base):
 
     user: Mapped[User] = relationship(back_populates="progress")
     training: Mapped[Training] = relationship(back_populates="progress")
+
+
+class LearningPath(TimestampMixin, Base):
+    __tablename__ = "learning_paths"
+    __table_args__ = (Index("ix_learning_paths_company_status", "company_id", "status"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(180), nullable=False)
+    description: Mapped[str] = mapped_column(String(700), nullable=False, default="")
+    status: Mapped[LearningPathStatus] = mapped_column(
+        learning_path_status_enum, nullable=False, default=LearningPathStatus.DRAFT
+    )
+    created_by: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+
+    company: Mapped[Company] = relationship(back_populates="learning_paths")
+    items: Mapped[list[LearningPathItem]] = relationship(
+        back_populates="learning_path",
+        cascade="all, delete-orphan",
+        order_by="LearningPathItem.position",
+    )
+    assignments: Mapped[list[LearningPathAssignment]] = relationship(
+        back_populates="learning_path", cascade="all, delete-orphan"
+    )
+    certificates: Mapped[list[Certificate]] = relationship(back_populates="learning_path")
+
+
+class LearningPathItem(Base):
+    __tablename__ = "learning_path_items"
+    __table_args__ = (
+        UniqueConstraint("learning_path_id", "position", name="path_item_position"),
+        UniqueConstraint("learning_path_id", "training_id", name="path_item_training"),
+        CheckConstraint("position >= 0", name="non_negative_position"),
+        Index("ix_learning_path_items_company_path", "company_id", "learning_path_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
+    )
+    learning_path_id: Mapped[UUID] = mapped_column(
+        ForeignKey("learning_paths.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    training_id: Mapped[UUID] = mapped_column(
+        ForeignKey("trainings.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    learning_path: Mapped[LearningPath] = relationship(back_populates="items")
+    training: Mapped[Training] = relationship()
+
+
+class LearningPathAssignment(Base):
+    __tablename__ = "learning_path_assignments"
+    __table_args__ = (
+        UniqueConstraint("learning_path_id", "employee_id", name="path_employee"),
+        Index("ix_path_assignments_company_employee", "company_id", "employee_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
+    )
+    learning_path_id: Mapped[UUID] = mapped_column(
+        ForeignKey("learning_paths.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    employee_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    assigned_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    due_date: Mapped[date | None] = mapped_column(Date)
+
+    learning_path: Mapped[LearningPath] = relationship(back_populates="assignments")
+    employee: Mapped[User] = relationship()
+
+
+class Certificate(Base):
+    __tablename__ = "certificates"
+    __table_args__ = (
+        UniqueConstraint("learning_path_id", "user_id", name="certificate_path_user"),
+        Index("ix_certificates_company_issued", "company_id", "issued_at"),
+        CheckConstraint("workload_minutes > 0", name="positive_workload_minutes"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    learning_path_id: Mapped[UUID] = mapped_column(
+        ForeignKey("learning_paths.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    code: Mapped[str] = mapped_column(String(48), nullable=False, unique=True, index=True)
+    user_full_name: Mapped[str] = mapped_column(String(140), nullable=False)
+    user_email: Mapped[str] = mapped_column(String(254), nullable=False)
+    company_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    learning_path_title: Mapped[str] = mapped_column(String(180), nullable=False)
+    workload_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    issued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    learning_path: Mapped[LearningPath] = relationship(back_populates="certificates")
+    user: Mapped[User] = relationship()
 
 
 class Quiz(TimestampMixin, Base):

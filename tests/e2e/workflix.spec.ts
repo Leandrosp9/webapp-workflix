@@ -77,7 +77,6 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
   page,
 }) => {
   await login(page, "admin@workflix.demo");
-
   await expect(page).toHaveURL(/\/admin$/);
   await expect(
     page.getByRole("heading", { name: "Visão geral" }),
@@ -94,6 +93,118 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
     page.getByRole("heading", { name: "Colaboradores" }),
   ).toBeVisible();
   await expect(page.getByText("employee@workflix.demo")).toBeVisible();
+
+  await page.getByRole("link", { name: "Trilhas", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Trilhas" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Relatórios", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Relatórios e analytics" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Progresso CSV" }),
+  ).toBeVisible();
+});
+
+test("trilha concluída libera certificado verificável ao colaborador", async ({
+  page,
+}) => {
+  await login(page, "admin@workflix.demo");
+  await expect(page).toHaveURL(/\/admin$/);
+  const adminToken = await page.evaluate(() =>
+    localStorage.getItem("workflix.access"),
+  );
+  expect(adminToken).toBeTruthy();
+  const adminHeaders = { Authorization: `Bearer ${adminToken}` };
+  const [pathsResponse, trainingsResponse, usersResponse] = await Promise.all([
+    page.request.get("/api/v1/learning-paths", { headers: adminHeaders }),
+    page.request.get("/api/v1/trainings", { headers: adminHeaders }),
+    page.request.get("/api/v1/users", { headers: adminHeaders }),
+  ]);
+  expect(pathsResponse.ok()).toBeTruthy();
+  const trainings = (await trainingsResponse.json()) as Array<{
+    id: string;
+    status: string;
+  }>;
+  const employees = (await usersResponse.json()) as Array<{
+    id: string;
+    email: string;
+  }>;
+  const training = trainings.find((item) => item.status === "PUBLISHED");
+  const employee = employees.find(
+    (item) => item.email === "employee@workflix.demo",
+  );
+  expect(training).toBeTruthy();
+  expect(employee).toBeTruthy();
+
+  const title = "Trilha Playwright Verificável";
+  let learningPath = (
+    (await pathsResponse.json()) as Array<{ id: string; title: string }>
+  ).find((item) => item.title === title);
+  if (!learningPath) {
+    const created = await page.request.post("/api/v1/learning-paths", {
+      headers: adminHeaders,
+      data: {
+        title,
+        description: "Fluxo estável de trilha e certificado exercitado no CI.",
+      },
+    });
+    expect(created.ok()).toBeTruthy();
+    learningPath = (await created.json()) as { id: string; title: string };
+    const items = await page.request.put(
+      `/api/v1/learning-paths/${learningPath.id}/items`,
+      {
+        headers: adminHeaders,
+        data: { items: [{ training_id: training!.id, required: true }] },
+      },
+    );
+    expect(items.ok()).toBeTruthy();
+    const published = await page.request.patch(
+      `/api/v1/learning-paths/${learningPath.id}`,
+      { headers: adminHeaders, data: { status: "PUBLISHED" } },
+    );
+    expect(published.ok()).toBeTruthy();
+  }
+  const assigned = await page.request.post(
+    `/api/v1/learning-paths/${learningPath.id}/assignments`,
+    {
+      headers: adminHeaders,
+      data: { employee_ids: [employee!.id] },
+    },
+  );
+  expect(assigned.ok()).toBeTruthy();
+
+  await page.evaluate(() => localStorage.clear());
+  await login(page, "employee@workflix.demo");
+  await expect(page).toHaveURL(/\/app$/);
+  const employeeToken = await page.evaluate(() =>
+    localStorage.getItem("workflix.access"),
+  );
+  const employeeHeaders = { Authorization: `Bearer ${employeeToken}` };
+  const completed = await page.request.patch(
+    `/api/v1/employee/trainings/${training!.id}/progress`,
+    { headers: employeeHeaders, data: { progress_percent: 100 } },
+  );
+  expect(completed.ok()).toBeTruthy();
+
+  await page.goto("/app/paths");
+  await expect(
+    page.getByRole("heading", { name: "Minhas trilhas" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: new RegExp(title) }).click();
+  await expect(page.getByText("Certificado emitido")).toBeVisible();
+
+  await page.getByRole("link", { name: "Certificados", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Certificados" }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(
+    page
+      .getByRole("article")
+      .filter({ hasText: title })
+      .getByRole("button", { name: "Baixar PDF" }),
+  ).toBeVisible();
 });
 
 test("administrador versiona PDF e acompanha a extração", async ({ page }) => {

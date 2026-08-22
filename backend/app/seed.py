@@ -9,6 +9,10 @@ from app.core.security import hash_password
 from app.db.session import SessionFactory, engine
 from app.models import (
     Company,
+    LearningPath,
+    LearningPathAssignment,
+    LearningPathItem,
+    LearningPathStatus,
     Question,
     QuestionOption,
     Quiz,
@@ -20,6 +24,7 @@ from app.models import (
     User,
     UserProgress,
 )
+from app.services.certificates import CertificateService
 
 DEMO_PASSWORD = "Workflix@2026"  # noqa: S105 - intentional local demo credential
 
@@ -254,6 +259,60 @@ async def ensure_quiz(session: AsyncSession, company: Company, training: Trainin
     session.add(quiz)
 
 
+async def ensure_learning_path(
+    session: AsyncSession,
+    *,
+    company: Company,
+    admin: User,
+    title: str,
+    description: str,
+    trainings: list[Training],
+    employees: list[User],
+) -> LearningPath:
+    learning_path = await session.scalar(
+        select(LearningPath).where(
+            LearningPath.company_id == company.id, LearningPath.title == title
+        )
+    )
+    if learning_path is None:
+        learning_path = LearningPath(
+            company_id=company.id,
+            created_by=admin.id,
+            title=title,
+            description=description,
+            status=LearningPathStatus.PUBLISHED,
+        )
+        session.add(learning_path)
+        await session.flush()
+        for position, training in enumerate(trainings):
+            session.add(
+                LearningPathItem(
+                    company_id=company.id,
+                    learning_path_id=learning_path.id,
+                    training_id=training.id,
+                    position=position,
+                    required=True,
+                )
+            )
+    for employee in employees:
+        assigned = await session.scalar(
+            select(LearningPathAssignment.id).where(
+                LearningPathAssignment.learning_path_id == learning_path.id,
+                LearningPathAssignment.employee_id == employee.id,
+            )
+        )
+        if assigned is None:
+            session.add(
+                LearningPathAssignment(
+                    company_id=company.id,
+                    learning_path_id=learning_path.id,
+                    employee_id=employee.id,
+                    due_date=date(2026, 10, 31),
+                )
+            )
+    return learning_path
+
+
 async def seed_session(session: AsyncSession) -> None:
     company = await session.scalar(select(Company).where(Company.slug == "novatech"))
     if company is None:
@@ -304,6 +363,31 @@ async def seed_session(session: AsyncSession) -> None:
                     completed_at=now if percent == 100 else None,
                 )
             )
+    await session.flush()
+    await ensure_learning_path(
+        session,
+        company=company,
+        admin=users["admin@workflix.demo"],
+        title="Jornada Essencial NovaTech",
+        description="Segurança, privacidade e comunicação para uma rotina de trabalho consciente.",
+        trainings=trainings[:3],
+        employees=employees[:2],
+    )
+    privacy_path = await ensure_learning_path(
+        session,
+        company=company,
+        admin=users["admin@workflix.demo"],
+        title="Privacidade na prática",
+        description="Uma jornada objetiva para aplicar a LGPD nas decisões do dia a dia.",
+        trainings=[trainings[1]],
+        employees=[demo_employee],
+    )
+    await session.flush()
+    await CertificateService(session).issue_eligible(
+        company_id=company.id,
+        user_id=demo_employee.id,
+        learning_path_ids=[privacy_path.id],
+    )
     await session.commit()
 
 

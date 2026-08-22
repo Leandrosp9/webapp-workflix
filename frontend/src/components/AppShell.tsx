@@ -1,11 +1,14 @@
 import {
   BarChart3,
+  Award,
   BookOpen,
   ChevronDown,
   GraduationCap,
   Home,
   LogOut,
   Menu,
+  Route,
+  FileText,
   Users,
   X,
 } from "lucide-react";
@@ -19,12 +22,16 @@ import { Brand } from "./Brand";
 const employeeNavigation = [
   { to: "/app", label: "Início", icon: Home },
   { to: "/app/catalog", label: "Meus treinamentos", icon: GraduationCap },
+  { to: "/app/paths", label: "Minhas trilhas", icon: Route },
+  { to: "/app/certificates", label: "Certificados", icon: Award },
 ];
 
 const adminNavigation = [
   { to: "/admin", label: "Visão geral", icon: BarChart3 },
   { to: "/admin/trainings", label: "Treinamentos", icon: BookOpen },
+  { to: "/admin/paths", label: "Trilhas", icon: Route },
   { to: "/admin/users", label: "Colaboradores", icon: Users },
+  { to: "/admin/reports", label: "Relatórios", icon: FileText },
 ];
 
 export function AppShell({ children }: PropsWithChildren) {

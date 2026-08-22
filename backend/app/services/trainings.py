@@ -11,6 +11,7 @@ from app.models import (
     Document,
     DocumentAcknowledgement,
     DocumentVersion,
+    LearningPathItem,
     Quiz,
     Role,
     Training,
@@ -29,6 +30,7 @@ from app.schemas.trainings import (
     TrainingResponse,
     TrainingUpdate,
 )
+from app.services.certificates import CertificateService
 from app.storage import (
     ObjectStorage,
     StorageError,
@@ -142,6 +144,18 @@ class TrainingService:
             raise AppError(
                 code="TRAINING_HAS_ACKNOWLEDGEMENTS",
                 message="Training cannot be deleted because acknowledgement evidence exists.",
+                status_code=409,
+            )
+        path_item_count = await self._session.scalar(
+            select(func.count(LearningPathItem.id)).where(
+                LearningPathItem.training_id == training_id,
+                LearningPathItem.company_id == company_id,
+            )
+        )
+        if path_item_count:
+            raise AppError(
+                code="TRAINING_IN_LEARNING_PATH",
+                message="Training cannot be deleted while it belongs to a learning path.",
                 status_code=409,
             )
         version_keys = list(
@@ -311,6 +325,11 @@ class TrainingService:
                 progress.started_at = now
             if progress.progress_percent == 100 and progress.completed_at is None:
                 progress.completed_at = now
+        await self._session.flush()
+        if progress.progress_percent == 100:
+            await CertificateService(self._session).issue_eligible(
+                company_id=company_id, user_id=employee_id
+            )
         await self._session.commit()
         await self._session.refresh(progress)
         return self._response(training, progress=progress, assignment=assignment, has_quiz=has_quiz)

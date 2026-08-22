@@ -1,6 +1,7 @@
 """SQLAlchemy domain models."""
 
 from app.models.domain import (
+    Certificate,
     Company,
     Document,
     DocumentAcknowledgement,
@@ -10,6 +11,10 @@ from app.models.domain import (
     DocumentProcessingJob,
     DocumentStatus,
     DocumentVersion,
+    LearningPath,
+    LearningPathAssignment,
+    LearningPathItem,
+    LearningPathStatus,
     Question,
     QuestionOption,
     Quiz,
@@ -25,6 +30,7 @@ from app.models.domain import (
 )
 
 __all__ = [
+    "Certificate",
     "Company",
     "Document",
     "DocumentAcknowledgement",
@@ -34,6 +40,10 @@ __all__ = [
     "DocumentProcessingJob",
     "DocumentStatus",
     "DocumentVersion",
+    "LearningPath",
+    "LearningPathAssignment",
+    "LearningPathItem",
+    "LearningPathStatus",
     "Question",
     "QuestionOption",
     "Quiz",
