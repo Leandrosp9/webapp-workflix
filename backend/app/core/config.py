@@ -1,3 +1,4 @@
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -59,6 +60,11 @@ class Settings(BaseSettings):
     rag_embedding_model: str = "gemini-embedding-2"
     rag_embedding_dimensions: int = Field(default=768, ge=768, le=768)
     rag_max_pdf_pages: int = Field(default=500, ge=1, le=5000)
+    rag_ocr_enabled: bool = True
+    rag_ocr_languages: str = "por+eng"
+    rag_ocr_dpi: int = Field(default=200, ge=72, le=600)
+    rag_ocr_min_native_chars: int = Field(default=1, ge=0, le=10_000)
+    rag_ocr_max_pages: int = Field(default=100, ge=1, le=5000)
     rag_retrieval_limit: int = Field(default=6, ge=1, le=12)
     document_worker_poll_seconds: float = Field(default=1.0, ge=0.1, le=60)
     document_job_lease_seconds: int = Field(default=120, ge=30, le=3600)
@@ -81,6 +87,14 @@ class Settings(BaseSettings):
     @classmethod
     def empty_optional_value_is_none(cls, value: object) -> object:
         return None if value == "" else value
+
+    @field_validator("rag_ocr_languages")
+    @classmethod
+    def validate_ocr_languages(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not re.fullmatch(r"[a-z]{3}(?:\+[a-z]{3})*", normalized):
+            raise ValueError("rag_ocr_languages must use Tesseract language codes")
+        return normalized
 
     @model_validator(mode="after")
     def validate_provider_configuration(self) -> "Settings":

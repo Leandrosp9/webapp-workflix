@@ -14,11 +14,46 @@ export interface DocumentVersion {
   checksum: string;
   status: DocumentStatus;
   page_count: number;
+  ocr_page_count: number;
   chunk_count: number;
   error_code: string | null;
   created_at: string;
   updated_at: string;
   processed_at: string | null;
+}
+
+export interface DocumentAcknowledgement {
+  id: string;
+  training_id: string;
+  document_id: string;
+  document_version_id: string;
+  user_id: string;
+  user_email: string;
+  user_full_name: string;
+  document_title: string;
+  original_filename: string;
+  version_number: number;
+  document_checksum: string;
+  attestation: string;
+  acknowledged_at: string;
+}
+
+export interface EmployeeAcknowledgementStatus {
+  document_version_id: string;
+  version_number: number;
+  document_checksum: string;
+  attestation: string;
+  acknowledged: boolean;
+  acknowledgement: DocumentAcknowledgement | null;
+}
+
+export interface AdminAcknowledgementSummary {
+  document_version_id: string;
+  version_number: number;
+  total_assigned: number;
+  acknowledged_current: number;
+  pending_current: number;
+  history: Array<DocumentAcknowledgement & { is_current: boolean }>;
 }
 
 export interface User {

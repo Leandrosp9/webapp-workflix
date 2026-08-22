@@ -1,4 +1,14 @@
-import { ArrowLeft, FileUp, Plus, RefreshCw, Save, Sparkles, Trash2, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  FileUp,
+  Plus,
+  RefreshCw,
+  Save,
+  Sparkles,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -6,6 +16,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { LoadingState } from "../../components/PageState";
 import { ApiError, api } from "../../services/http";
 import type {
+  AdminAcknowledgementSummary,
   DocumentStatus,
   DocumentVersion,
   Training,
@@ -99,6 +110,12 @@ export default function AdminTrainingEditorPage() {
     refetchInterval: (query) =>
       query.state.data && processingStatuses.includes(query.state.data.status) ? 2_000 : false,
   });
+  const acknowledgementQuery = useQuery({
+    queryKey: ["admin-training-acknowledgements", trainingId],
+    queryFn: () => api<AdminAcknowledgementSummary>(`/trainings/${trainingId}/acknowledgements`),
+    enabled: !isNew && Boolean(trainingQuery.data?.has_pdf),
+    retry: false,
+  });
 
   useEffect(() => {
     const training = trainingQuery.data;
@@ -183,8 +200,10 @@ export default function AdminTrainingEditorPage() {
         method: "POST",
         body: JSON.stringify({ employee_ids: selectedEmployees }),
       }),
-    onSuccess: ({ assigned, updated }) =>
-      setMessage(`${assigned} novas atribuições e ${updated} atualizadas.`),
+    onSuccess: ({ assigned, updated }) => {
+      setMessage(`${assigned} novas atribuições e ${updated} atualizadas.`);
+      void acknowledgementQuery.refetch();
+    },
     onError: handleError,
   });
   const uploadPdf = useMutation({
@@ -200,6 +219,9 @@ export default function AdminTrainingEditorPage() {
         setMessage(`Versão ${saved.document_version.version_number} enviada. Extração iniciada.`);
       }
       void client.invalidateQueries({ queryKey: ["admin-training", trainingId] });
+      void client.invalidateQueries({
+        queryKey: ["admin-training-acknowledgements", trainingId],
+      });
     },
     onError: handleError,
   });
@@ -388,6 +410,11 @@ export default function AdminTrainingEditorPage() {
                       {documentQuery.data.page_count} páginas · {documentQuery.data.chunk_count}{" "}
                       trechos indexados
                     </small>
+                    {documentQuery.data.ocr_page_count > 0 && (
+                      <small>
+                        {documentQuery.data.ocr_page_count} páginas reconhecidas por OCR
+                      </small>
+                    )}
                     {documentQuery.data.error_code && (
                       <small>Código: {documentQuery.data.error_code}</small>
                     )}
@@ -403,6 +430,50 @@ export default function AdminTrainingEditorPage() {
                     </button>
                   )}
                 </div>
+              )}
+              {acknowledgementQuery.data && (
+                <section className="acknowledgement-report">
+                  <div className="acknowledgement-report-heading">
+                    <BadgeCheck size={21} />
+                    <div>
+                      <span className="section-kicker">Ciência da versão atual</span>
+                      <strong>Versão {acknowledgementQuery.data.version_number}</strong>
+                    </div>
+                  </div>
+                  <div className="acknowledgement-metrics">
+                    <span>
+                      <strong>{acknowledgementQuery.data.acknowledged_current}</strong>
+                      cientes
+                    </span>
+                    <span>
+                      <strong>{acknowledgementQuery.data.pending_current}</strong>
+                      pendentes
+                    </span>
+                    <span>
+                      <strong>{acknowledgementQuery.data.total_assigned}</strong>
+                      atribuídos
+                    </span>
+                  </div>
+                  {acknowledgementQuery.data.history.length > 0 && (
+                    <div className="acknowledgement-history">
+                      {acknowledgementQuery.data.history.map((item) => (
+                        <div key={item.id}>
+                          <span>
+                            <strong>{item.user_full_name}</strong>
+                            <small>{item.user_email}</small>
+                          </span>
+                          <span>
+                            <strong>
+                              Versão {item.version_number}
+                              {item.is_current ? " · atual" : ""}
+                            </strong>
+                            <small>{new Date(item.acknowledged_at).toLocaleString("pt-BR")}</small>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
               )}
             </div>
           )}

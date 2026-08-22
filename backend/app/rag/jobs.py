@@ -15,9 +15,9 @@ from app.models import (
     DocumentStatus,
     DocumentVersion,
 )
-from app.rag.chunker import DocumentChunker
+from app.rag.chunker import DocumentChunker, ExtractionMethod
 from app.rag.embeddings import EmbeddingError, EmbeddingProvider, EmbeddingTask
-from app.rag.extractor import PDFExtractionError, PyMuPDFExtractor
+from app.rag.extractor import PDFExtractionError, PyMuPDFExtractor, PyMuPDFTesseractOCR
 from app.rag.providers import GeminiEmbeddingProvider
 from app.storage import ObjectNotFoundError, ObjectStorage, StorageError
 
@@ -50,12 +50,26 @@ class DocumentProcessingService:
         *,
         storage: ObjectStorage,
         embedding_provider: EmbeddingProvider | None,
+        extractor: PyMuPDFExtractor | None = None,
     ) -> None:
         settings = get_settings()
         self._session = session
         self._storage = storage
         self._embedding_provider = embedding_provider
-        self._extractor = PyMuPDFExtractor(max_pages=settings.rag_max_pdf_pages)
+        ocr = (
+            PyMuPDFTesseractOCR(
+                languages=settings.rag_ocr_languages,
+                dpi=settings.rag_ocr_dpi,
+            )
+            if settings.rag_ocr_enabled
+            else None
+        )
+        self._extractor = extractor or PyMuPDFExtractor(
+            max_pages=settings.rag_max_pdf_pages,
+            ocr=ocr,
+            min_native_chars=settings.rag_ocr_min_native_chars,
+            max_ocr_pages=settings.rag_ocr_max_pages,
+        )
         self._chunker = DocumentChunker()
 
     async def process(self, version_id: UUID) -> DocumentProcessingOutcome:
@@ -99,11 +113,15 @@ class DocumentProcessingService:
                         document_version_id=version.id,
                         page_number=page.page,
                         text=page.text,
+                        extraction_method=page.extraction_method,
                     )
                     for page in pages
                 ]
             )
             version.page_count = len(pages)
+            version.ocr_page_count = sum(
+                page.extraction_method == ExtractionMethod.OCR for page in pages
+            )
             version.chunk_count = 0
             version.status = DocumentStatus.EXTRACTED
             version.processed_at = datetime.now(UTC)

@@ -1585,6 +1585,53 @@ label {
   font-size: 0.75rem;
 }
 
+.acknowledgement-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin: 26px;
+  padding: 20px;
+  border: 1px solid rgba(139, 114, 255, 0.3);
+  border-radius: 12px;
+  background: rgba(139, 114, 255, 0.055);
+}
+
+.acknowledgement-panel > svg {
+  color: #aaa0e8;
+}
+
+.acknowledgement-panel h2,
+.acknowledgement-panel p {
+  margin: 0;
+}
+
+.acknowledgement-panel h2 {
+  margin-top: 4px;
+  font-size: 1rem;
+}
+
+.acknowledgement-panel p,
+.acknowledgement-panel small {
+  display: block;
+  margin-top: 6px;
+  color: var(--wf-muted);
+  font-size: 0.68rem;
+}
+
+.acknowledgement-panel.is-acknowledged {
+  border-color: rgba(98, 215, 162, 0.32);
+  background: rgba(98, 215, 162, 0.055);
+}
+
+.acknowledgement-panel.is-acknowledged > svg {
+  color: #62d7a2;
+}
+
+.acknowledgement-error {
+  grid-column: 2 / -1;
+}
+
 .player-sidebar {
   position: sticky;
   top: 95px;
@@ -2278,6 +2325,90 @@ label {
   color: #737e90;
   font-size: 0.62rem;
 }
+
+.acknowledgement-report {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--wf-line);
+  border-radius: 10px;
+  background: rgba(3, 6, 12, 0.34);
+}
+
+.acknowledgement-report-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.acknowledgement-report-heading > svg {
+  color: #62d7a2;
+}
+
+.acknowledgement-report-heading span,
+.acknowledgement-report-heading strong {
+  display: block;
+}
+
+.acknowledgement-report-heading strong {
+  margin-top: 3px;
+  font-size: 0.78rem;
+}
+
+.acknowledgement-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.acknowledgement-metrics > span {
+  padding: 12px;
+  border: 1px solid var(--wf-line);
+  border-radius: 8px;
+  color: #7c8799;
+  font-size: 0.61rem;
+}
+
+.acknowledgement-metrics strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--wf-text);
+  font-size: 1.05rem;
+}
+
+.acknowledgement-history {
+  display: grid;
+  max-height: 260px;
+  overflow: auto;
+  border-top: 1px solid var(--wf-line);
+}
+
+.acknowledgement-history > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--wf-line);
+}
+
+.acknowledgement-history span:last-child {
+  text-align: right;
+}
+
+.acknowledgement-history strong,
+.acknowledgement-history small {
+  display: block;
+}
+
+.acknowledgement-history strong {
+  font-size: 0.67rem;
+}
+
+.acknowledgement-history small {
+  margin-top: 3px;
+  color: #717c8e;
+  font-size: 0.59rem;
+}
 .rag-panel {
   display: grid;
   gap: 18px;
@@ -2611,6 +2742,23 @@ label {
   }
   .document-status {
     flex-direction: column;
+  }
+  .acknowledgement-panel {
+    grid-template-columns: auto minmax(0, 1fr);
+    margin: 17px;
+  }
+  .acknowledgement-panel .button,
+  .acknowledgement-error {
+    grid-column: 1 / -1;
+  }
+  .acknowledgement-metrics {
+    grid-template-columns: 1fr;
+  }
+  .acknowledgement-history > div {
+    flex-direction: column;
+  }
+  .acknowledgement-history span:last-child {
+    text-align: left;
   }
   .rag-panel {
     margin: 17px;

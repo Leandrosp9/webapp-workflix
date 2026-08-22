@@ -219,6 +219,8 @@ class DocumentVersion(TimestampMixin, Base):
         CheckConstraint("version_number > 0", name="positive_version_number"),
         CheckConstraint("size_bytes > 0", name="positive_size_bytes"),
         CheckConstraint("page_count >= 0", name="non_negative_page_count"),
+        CheckConstraint("ocr_page_count >= 0", name="non_negative_ocr_page_count"),
+        CheckConstraint("ocr_page_count <= page_count", name="ocr_pages_within_page_count"),
         CheckConstraint("chunk_count >= 0", name="non_negative_chunk_count"),
         CheckConstraint(
             "status IN ('UPLOADED', 'EXTRACTING', 'EXTRACTED', 'INDEXING', 'READY', 'FAILED')",
@@ -244,6 +246,7 @@ class DocumentVersion(TimestampMixin, Base):
         document_status_enum, nullable=False, default=DocumentStatus.UPLOADED
     )
     page_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ocr_page_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_code: Mapped[str | None] = mapped_column(String(80))
     created_by: Mapped[UUID] = mapped_column(
@@ -319,6 +322,10 @@ class DocumentPage(Base):
             name="uq_document_pages_document_page_number",
         ),
         CheckConstraint("page_number > 0", name="positive_page_number"),
+        CheckConstraint(
+            "extraction_method IN ('NATIVE', 'OCR', 'NONE')",
+            name="valid_extraction_method",
+        ),
         Index("ix_document_pages_company_version", "company_id", "document_version_id"),
     )
 
@@ -331,6 +338,7 @@ class DocumentPage(Base):
     )
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    extraction_method: Mapped[str] = mapped_column(String(16), nullable=False, default="NATIVE")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -376,6 +384,57 @@ class DocumentChunk(Base):
     )
 
     document_version: Mapped[DocumentVersion] = relationship(back_populates="chunks")
+
+
+class DocumentAcknowledgement(Base):
+    __tablename__ = "document_acknowledgements"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "document_version_id",
+            name="uq_document_acknowledgements_user_version",
+        ),
+        CheckConstraint("version_number > 0", name="positive_version_number"),
+        Index(
+            "ix_document_acknowledgements_company_training_time",
+            "company_id",
+            "training_id",
+            "acknowledged_at",
+        ),
+        Index("ix_document_acknowledgements_company_user", "company_id", "user_id"),
+        Index(
+            "ix_document_acknowledgements_company_version",
+            "company_id",
+            "document_version_id",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
+    )
+    training_id: Mapped[UUID] = mapped_column(
+        ForeignKey("trainings.id", ondelete="RESTRICT"), nullable=False
+    )
+    document_id: Mapped[UUID] = mapped_column(
+        ForeignKey("documents.id", ondelete="RESTRICT"), nullable=False
+    )
+    document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    user_email: Mapped[str] = mapped_column(String(254), nullable=False)
+    user_full_name: Mapped[str] = mapped_column(String(140), nullable=False)
+    document_title: Mapped[str] = mapped_column(String(180), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    document_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    attestation: Mapped[str] = mapped_column(String(500), nullable=False)
+    acknowledged_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class TrainingAssignment(Base):

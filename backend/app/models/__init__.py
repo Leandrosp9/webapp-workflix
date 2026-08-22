@@ -3,6 +3,7 @@
 from app.models.domain import (
     Company,
     Document,
+    DocumentAcknowledgement,
     DocumentChunk,
     DocumentJobStatus,
     DocumentPage,
@@ -26,6 +27,7 @@ from app.models.domain import (
 __all__ = [
     "Company",
     "Document",
+    "DocumentAcknowledgement",
     "DocumentChunk",
     "DocumentJobStatus",
     "DocumentPage",

@@ -2,9 +2,17 @@ FROM python:3.13-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
 
 WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        tesseract-ocr \
+        tesseract-ocr-eng \
+        tesseract-ocr-por \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --system workflix && adduser --system --ingroup workflix workflix
 RUN mkdir -p /app/uploads && chown workflix:workflix /app/uploads

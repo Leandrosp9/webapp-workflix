@@ -184,6 +184,118 @@ test("administrador versiona PDF e acompanha a extração", async ({ page }) => 
   }
 });
 
+test("colaborador registra ciência da versão atual do PDF", async ({
+  page,
+}) => {
+  await login(page, "employee@workflix.demo");
+  await expect(page).toHaveURL(/\/app$/);
+  const trainingId = "10000000-0000-4000-8000-000000000001";
+  const documentId = "20000000-0000-4000-8000-000000000001";
+  const versionId = "30000000-0000-4000-8000-000000000001";
+  const acknowledgementId = "40000000-0000-4000-8000-000000000001";
+  const checksum = "a".repeat(64);
+  let postedVersion = "";
+
+  await page.route(
+    `**/api/v1/employee/trainings/${trainingId}`,
+    async (route) => {
+      await route.fulfill({
+        json: {
+          id: trainingId,
+          company_id: "50000000-0000-4000-8000-000000000001",
+          title: "Política de segurança da informação",
+          description: "Documento obrigatório para todos os colaboradores.",
+          type: "PDF",
+          thumbnail_url: null,
+          content: "",
+          video_url: null,
+          has_pdf: true,
+          estimated_minutes: 8,
+          status: "PUBLISHED",
+          created_at: "2026-08-22T12:00:00Z",
+          updated_at: "2026-08-22T12:00:00Z",
+          progress_percent: 0,
+          assigned_at: "2026-08-22T12:00:00Z",
+          due_date: null,
+          has_quiz: false,
+        },
+      });
+    },
+  );
+  await page.route(
+    `**/api/v1/trainings/${trainingId}/document`,
+    async (route) => {
+      await route.fulfill({
+        json: {
+          id: versionId,
+          document_id: documentId,
+          version_number: 3,
+          original_filename: "politica-seguranca.pdf",
+          content_type: "application/pdf",
+          size_bytes: 2048,
+          checksum,
+          status: "READY",
+          page_count: 4,
+          ocr_page_count: 2,
+          chunk_count: 8,
+          error_code: null,
+          created_at: "2026-08-22T12:00:00Z",
+          updated_at: "2026-08-22T12:00:00Z",
+          processed_at: "2026-08-22T12:01:00Z",
+        },
+      });
+    },
+  );
+  await page.route(
+    `**/api/v1/employee/trainings/${trainingId}/acknowledgement`,
+    async (route) => {
+      const acknowledged = route.request().method() === "POST";
+      if (acknowledged) {
+        postedVersion = (
+          route.request().postDataJSON() as { document_version_id: string }
+        ).document_version_id;
+      }
+      await route.fulfill({
+        json: {
+          document_version_id: versionId,
+          version_number: 3,
+          document_checksum: checksum,
+          attestation: "Confirmo que li e compreendi esta versão do documento.",
+          acknowledged,
+          acknowledgement: acknowledged
+            ? {
+                id: acknowledgementId,
+                training_id: trainingId,
+                document_id: documentId,
+                document_version_id: versionId,
+                user_id: "60000000-0000-4000-8000-000000000001",
+                user_email: "employee@workflix.demo",
+                user_full_name: "Lucas Andrade",
+                document_title: "Política de segurança da informação",
+                original_filename: "politica-seguranca.pdf",
+                version_number: 3,
+                document_checksum: checksum,
+                attestation:
+                  "Confirmo que li e compreendi esta versão do documento.",
+                acknowledged_at: "2026-08-22T12:05:00Z",
+              }
+            : null,
+        },
+      });
+    },
+  );
+
+  await page.goto(`/app/training/${trainingId}`);
+  await expect(page.getByText("Ciência do documento")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Versão 3" })).toBeVisible();
+  await page.getByRole("button", { name: "Li e estou ciente" }).click();
+  await expect(
+    page.getByRole("button", { name: "Ciência registrada" }),
+  ).toBeVisible();
+  await expect(page.getByText(/SHA-256 aaaaaaaaaaaa/)).toBeVisible();
+  expect(postedVersion).toBe(versionId);
+});
+
 test("experiência do colaborador não cria overflow horizontal no celular", async ({
   page,
 }) => {

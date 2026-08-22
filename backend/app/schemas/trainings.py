@@ -18,6 +18,7 @@ class DocumentVersionResponse(BaseModel):
     checksum: str
     status: DocumentStatus
     page_count: int
+    ocr_page_count: int
     chunk_count: int
     error_code: str | None
     created_at: datetime

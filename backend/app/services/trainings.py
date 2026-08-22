@@ -9,6 +9,7 @@ from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.models import (
     Document,
+    DocumentAcknowledgement,
     DocumentVersion,
     Quiz,
     Role,
@@ -70,12 +71,17 @@ class TrainingService:
             has_quiz=bool(training.quiz) if has_quiz is None else has_quiz,
         )
 
-    async def _admin_training(self, training_id: UUID, company_id: UUID) -> Training:
-        training = await self._session.scalar(
+    async def _admin_training(
+        self, training_id: UUID, company_id: UUID, *, lock: bool = False
+    ) -> Training:
+        statement = (
             select(Training)
             .options(selectinload(Training.quiz))
             .where(Training.id == training_id, Training.company_id == company_id)
         )
+        if lock:
+            statement = statement.with_for_update()
+        training = await self._session.scalar(statement)
         if training is None:
             raise AppError(
                 code="TRAINING_NOT_FOUND", message="Training not found.", status_code=404
@@ -125,7 +131,19 @@ class TrainingService:
         return self._response(training)
 
     async def delete(self, training_id: UUID, company_id: UUID) -> None:
-        training = await self._admin_training(training_id, company_id)
+        training = await self._admin_training(training_id, company_id, lock=True)
+        acknowledgement_count = await self._session.scalar(
+            select(func.count(DocumentAcknowledgement.id)).where(
+                DocumentAcknowledgement.training_id == training_id,
+                DocumentAcknowledgement.company_id == company_id,
+            )
+        )
+        if acknowledgement_count:
+            raise AppError(
+                code="TRAINING_HAS_ACKNOWLEDGEMENTS",
+                message="Training cannot be deleted because acknowledgement evidence exists.",
+                status_code=409,
+            )
         version_keys = list(
             await self._session.scalars(
                 select(DocumentVersion.object_key)

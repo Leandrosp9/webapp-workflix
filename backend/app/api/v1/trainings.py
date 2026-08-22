@@ -8,6 +8,11 @@ from app.api.dependencies import AdminUser, CurrentUser, EmployeeUser, SessionDe
 from app.core.errors import AppError
 from app.models import DocumentStatus
 from app.rag.queue import DocumentQueueDependency
+from app.schemas.acknowledgements import (
+    AdminAcknowledgementSummary,
+    DocumentAcknowledgementCreate,
+    EmployeeAcknowledgementStatus,
+)
 from app.schemas.trainings import (
     AdminDashboardResponse,
     DocumentVersionResponse,
@@ -19,6 +24,7 @@ from app.schemas.trainings import (
     TrainingResponse,
     TrainingUpdate,
 )
+from app.services.acknowledgements import DocumentAcknowledgementService
 from app.services.documents import DocumentService
 from app.services.trainings import TrainingService
 
@@ -152,6 +158,51 @@ async def download_training_pdf(
         content=document.data,
         media_type=document.content_type,
         headers={"Content-Disposition": f'inline; filename="{training_id}.pdf"'},
+    )
+
+
+@router.get(
+    "/employee/trainings/{training_id}/acknowledgement",
+    response_model=EmployeeAcknowledgementStatus,
+)
+async def employee_acknowledgement_status(
+    training_id: UUID, employee: EmployeeUser, session: SessionDependency
+) -> EmployeeAcknowledgementStatus:
+    return await DocumentAcknowledgementService(session).employee_status(
+        training_id=training_id,
+        company_id=employee.company_id,
+        employee_id=employee.id,
+    )
+
+
+@router.post(
+    "/employee/trainings/{training_id}/acknowledgement",
+    response_model=EmployeeAcknowledgementStatus,
+)
+async def acknowledge_training_document(
+    training_id: UUID,
+    payload: DocumentAcknowledgementCreate,
+    employee: EmployeeUser,
+    session: SessionDependency,
+) -> EmployeeAcknowledgementStatus:
+    return await DocumentAcknowledgementService(session).acknowledge(
+        training_id=training_id,
+        company_id=employee.company_id,
+        employee=employee,
+        document_version_id=payload.document_version_id,
+    )
+
+
+@router.get(
+    "/trainings/{training_id}/acknowledgements",
+    response_model=AdminAcknowledgementSummary,
+)
+async def training_acknowledgements(
+    training_id: UUID, admin: AdminUser, session: SessionDependency
+) -> AdminAcknowledgementSummary:
+    return await DocumentAcknowledgementService(session).admin_summary(
+        training_id=training_id,
+        company_id=admin.company_id,
     )
 
 

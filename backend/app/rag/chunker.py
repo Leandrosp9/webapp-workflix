@@ -1,14 +1,22 @@
 import re
 from dataclasses import dataclass
+from enum import StrEnum
 
 _PARAGRAPH_BREAK = re.compile(r"\n\s*\n+")
 _WHITESPACE = re.compile(r"[ \t]+")
+
+
+class ExtractionMethod(StrEnum):
+    NATIVE = "NATIVE"
+    OCR = "OCR"
+    NONE = "NONE"
 
 
 @dataclass(frozen=True, slots=True)
 class PageText:
     page: int
     text: str
+    extraction_method: ExtractionMethod = ExtractionMethod.NATIVE
 
     def __post_init__(self) -> None:
         if self.page < 1:

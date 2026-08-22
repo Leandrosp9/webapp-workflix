@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   ArrowRight,
+  BadgeCheck,
   Bot,
   CheckCircle2,
   Clock3,
@@ -14,7 +15,12 @@ import { Link, useParams } from "react-router-dom";
 
 import { ErrorState, LoadingState } from "../components/PageState";
 import { ApiError, api, downloadPdf } from "../services/http";
-import type { DocumentVersion, RagAnswer, Training } from "../types/api";
+import type {
+  DocumentVersion,
+  EmployeeAcknowledgementStatus,
+  RagAnswer,
+  Training,
+} from "../types/api";
 
 export default function TrainingPlayerPage() {
   const { trainingId = "" } = useParams();
@@ -46,6 +52,25 @@ export default function TrainingPlayerPage() {
       ["UPLOADED", "EXTRACTING", "INDEXING"].includes(statusQuery.state.data.status)
         ? 2_000
         : false,
+  });
+  const acknowledgementQuery = useQuery({
+    queryKey: ["training-acknowledgement", trainingId],
+    queryFn: () =>
+      api<EmployeeAcknowledgementStatus>(`/employee/trainings/${trainingId}/acknowledgement`),
+    enabled: Boolean(query.data?.has_pdf),
+    retry: false,
+  });
+  const acknowledgeDocument = useMutation({
+    mutationFn: () =>
+      api<EmployeeAcknowledgementStatus>(`/employee/trainings/${trainingId}/acknowledgement`, {
+        method: "POST",
+        body: JSON.stringify({
+          document_version_id: acknowledgementQuery.data?.document_version_id,
+        }),
+      }),
+    onSuccess: (status) => {
+      queryClient.setQueryData(["training-acknowledgement", trainingId], status);
+    },
   });
   const askDocument = useMutation({
     mutationFn: () =>
@@ -105,6 +130,54 @@ export default function TrainingPlayerPage() {
                   Baixar material
                 </button>
               </div>
+              {acknowledgementQuery.data && (
+                <section
+                  className={`acknowledgement-panel ${
+                    acknowledgementQuery.data.acknowledged ? "is-acknowledged" : ""
+                  }`}
+                >
+                  <BadgeCheck size={25} />
+                  <div>
+                    <span className="section-kicker">Ciência do documento</span>
+                    <h2>Versão {acknowledgementQuery.data.version_number}</h2>
+                    <p>{acknowledgementQuery.data.attestation}</p>
+                    {acknowledgementQuery.data.acknowledgement && (
+                      <small>
+                        Registrado em{" "}
+                        {new Date(
+                          acknowledgementQuery.data.acknowledgement.acknowledged_at,
+                        ).toLocaleString("pt-BR")}
+                        {" · SHA-256 "}
+                        {acknowledgementQuery.data.document_checksum.slice(0, 12)}…
+                      </small>
+                    )}
+                  </div>
+                  <button
+                    className={`button ${
+                      acknowledgementQuery.data.acknowledged ? "ghost" : "primary"
+                    }`}
+                    type="button"
+                    disabled={
+                      acknowledgementQuery.data.acknowledged || acknowledgeDocument.isPending
+                    }
+                    onClick={() => acknowledgeDocument.mutate()}
+                  >
+                    <BadgeCheck size={15} />{" "}
+                    {acknowledgementQuery.data.acknowledged
+                      ? "Ciência registrada"
+                      : acknowledgeDocument.isPending
+                        ? "Registrando…"
+                        : "Li e estou ciente"}
+                  </button>
+                  {acknowledgeDocument.isError && (
+                    <div className="form-error acknowledgement-error">
+                      {acknowledgeDocument.error instanceof ApiError
+                        ? acknowledgeDocument.error.message
+                        : "Não foi possível registrar a ciência."}
+                    </div>
+                  )}
+                </section>
+              )}
               <section className="rag-panel">
                 <div className="rag-heading">
                   <Bot size={24} />

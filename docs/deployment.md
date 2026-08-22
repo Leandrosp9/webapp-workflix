@@ -54,9 +54,11 @@ MinIO in this overlay is single-node and appropriate for integration/staging val
 
 Copy `.env.example` to `.env` and replace every deployment secret. The included database password and JWT placeholder are suitable only for local development.
 
-Document intelligence uses `RAG_EMBEDDING_MODEL=gemini-embedding-2`, a schema-fixed `RAG_EMBEDDING_DIMENSIONS=768`, `RAG_MAX_PDF_PAGES`, and `RAG_RETRIEVAL_LIMIT`. `GEMINI_API_KEY` enables both embeddings and grounded answer generation. Without the key, upload/extraction still succeeds and the version remains `EXTRACTED` until an ADMIN requests reprocessing after configuration is available.
+Document intelligence uses `RAG_EMBEDDING_MODEL=gemini-embedding-2`, a schema-fixed `RAG_EMBEDDING_DIMENSIONS=768`, `RAG_MAX_PDF_PAGES`, and `RAG_RETRIEVAL_LIMIT`. Hybrid OCR is controlled by `RAG_OCR_ENABLED`, `RAG_OCR_LANGUAGES`, `RAG_OCR_DPI`, `RAG_OCR_MIN_NATIVE_CHARS`, and `RAG_OCR_MAX_PAGES`. The backend image includes Portuguese and English Tesseract data. `GEMINI_API_KEY` enables both embeddings and grounded answer generation. Without the key, upload/extraction and OCR still succeed and the version remains `EXTRACTED` until an ADMIN requests reprocessing after configuration is available.
 
 Worker behavior is controlled by `DOCUMENT_WORKER_POLL_SECONDS`, `DOCUMENT_JOB_LEASE_SECONDS`, `DOCUMENT_JOB_HEARTBEAT_SECONDS`, `DOCUMENT_JOB_MAX_ATTEMPTS`, `DOCUMENT_JOB_RETRY_BASE_SECONDS`, and `DOCUMENT_JOB_RETRY_MAX_SECONDS`. Keep the heartbeat shorter than the lease. Jobs are delivered at least once, so the extraction/indexing pipeline is intentionally idempotent.
+
+Workers started outside the provided image need Tesseract 5, the configured language data, and a valid `TESSDATA_PREFIX`. Use `RAG_OCR_ENABLED=false` only as an explicit host-development fallback; scanned PDFs then fail with `PDF_NO_EXTRACTABLE_TEXT` instead of being partially indexed.
 
 ## Operational endpoints
 

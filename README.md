@@ -4,7 +4,7 @@
 
 Workflix is a multi-tenant corporate learning and knowledge platform designed to centralize training, procedures, documents, assessments, and evidence of progress in one measurable experience.
 
-> Project status: the focused Workflix MVP and the first document-intelligence phase run end to end with authentication, tenant isolation, immutable PDF versions, page extraction, pgvector retrieval, cited answers, quizzes, and Gemini-assisted authoring.
+> Project status: the focused Workflix MVP and document-intelligence V2 run end to end with authentication, tenant isolation, immutable PDF versions, hybrid OCR, versioned acknowledgement evidence, pgvector retrieval, cited answers, quizzes, and Gemini-assisted authoring.
 
 ## Overview
 
@@ -37,6 +37,8 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 - Authorized PDF upload/download with MIME, signature, and size validation.
 - Provider-neutral local/S3-compatible PDF storage with private tenant-scoped object keys.
 - Immutable PDF versions with checksums, page extraction, observable processing states, and ADMIN reprocessing.
+- Selective Tesseract OCR for pages without native text, with bounded work and per-page provenance.
+- Immutable employee acknowledgement evidence tied to the exact PDF version and SHA-256 checksum, plus an ADMIN history report.
 - Durable PostgreSQL document jobs with leased multi-worker claims, heartbeats, exponential retry, and dead-letter state.
 - Gemini cloud embeddings, 768-dimensional pgvector chunks, cosine retrieval, and HNSW indexing.
 - Employee questions over assigned PDFs with grounded answers and explicit document/page citations.
@@ -57,8 +59,7 @@ Workflix provides one company-scoped catalog for learning and knowledge, backed 
 
 ### Intentionally deferred
 
-- OCR for image-only PDFs and document acknowledgment evidence.
-- Learning paths, certificates, notifications, reports, and audit history.
+- Learning paths, certificates, notifications, richer reports, and general audit history.
 - Departments, positions, manager role, SSO, billing, and enterprise integrations.
 
 ## AI Features
@@ -77,7 +78,7 @@ The MVP includes:
 
 Tests inject fake providers and never spend a real Gemini request. `GEMINI_API_KEY` remains optional: PDF extraction finishes in `EXTRACTED` without it, while authoring and RAG return explicit configuration errors. When configured, `gemini-embedding-2` creates 768-dimensional document/query embeddings and the employee player exposes source-aware questions over the latest authorized `READY` version. Groq remains an architectural adapter/fallback seam for authoring, not a live embedding transport.
 
-PDF processing states are `UPLOADED`, `EXTRACTING`, `EXTRACTED`, `INDEXING`, `READY`, and `FAILED`. Upload creates the version and its durable PostgreSQL job atomically. Independent workers claim jobs with `FOR UPDATE SKIP LOCKED`, renew bounded leases, retry transient storage/embedding failures with exponential backoff, and move permanent or exhausted failures to `DEAD_LETTER`. Processing remains idempotent and the ADMIN retry endpoint safely requeues completed or dead-lettered versions.
+PDF processing states are `UPLOADED`, `EXTRACTING`, `EXTRACTED`, `INDEXING`, `READY`, and `FAILED`. Upload creates the version and its durable PostgreSQL job atomically. Independent workers claim jobs with `FOR UPDATE SKIP LOCKED`, renew bounded leases, selectively invoke Tesseract only for pages without native text, retry transient storage/embedding failures with exponential backoff, and move permanent or exhausted failures to `DEAD_LETTER`. Processing remains idempotent and the ADMIN retry endpoint safely requeues completed or dead-lettered versions.
 
 ## Architecture
 
@@ -106,7 +107,7 @@ Workflix begins as a modular monolith with a separately scalable document-worker
 | Web         | React 19, Vite, TypeScript, React Router, TanStack Query            |
 | UI          | Tailwind CSS, Lucide React, Framer Motion                           |
 | Forms       | React Hook Form, Zod                                                |
-| API         | Python 3.13, FastAPI, Pydantic Settings                             |
+| API         | Python 3.13, FastAPI, Pydantic Settings, PyMuPDF, Tesseract OCR      |
 | Persistence | SQLAlchemy 2.x, Alembic, psycopg                                    |
 | Data        | PostgreSQL 17, pgvector                                             |
 | Quality     | Ruff, pytest, ESLint, Prettier, Vitest, Testing Library, Playwright |
@@ -140,6 +141,7 @@ Five fictional employees, six published trainings, assignments, progress, and qu
 
 - Docker Desktop with Docker Compose
 - Optional local development: Node.js 22+ and Python 3.13+
+- Optional worker outside Docker: Tesseract 5 with `por` and `eng` language data
 
 ### Run the complete stack
 
@@ -200,6 +202,8 @@ uvicorn app.main:app --reload
 
 On Windows, activate with `.venv\Scripts\Activate.ps1`.
 
+The Docker image already contains Tesseract and its Portuguese/English data. For a worker run directly on the host, install those language packs and point `TESSDATA_PREFIX` to the tessdata directory, or explicitly set `RAG_OCR_ENABLED=false` when OCR is not required.
+
 ## Environment Variables
 
 `.env.example` is the complete development contract. Important groups include:
@@ -207,7 +211,7 @@ On Windows, activate with `.venv\Scripts\Activate.ps1`.
 - application: `APP_ENV`, `APP_VERSION`, `DEMO_MODE`, `LOG_LEVEL`;
 - data: `DATABASE_URL`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`;
 - authentication: `JWT_SECRET`, access lifetime, and refresh lifetime;
-- AI/RAG: primary/fallback provider, Gemini/Groq keys, generation and embedding models, embedding dimensions, page cap, retrieval limit, worker polling, leases, heartbeats, attempts, and retry backoff;
+- AI/RAG: primary/fallback provider, Gemini/Groq keys, generation and embedding models, embedding dimensions, page/OCR caps, OCR languages and DPI, retrieval limit, worker polling, leases, heartbeats, attempts, and retry backoff;
 - files: local/S3 provider, bucket, endpoint, credentials, path style, encryption, and upload limit;
 - request protection: Redis URL and limits for login, refresh, and AI generation;
 - managed secrets: provider, secret identifier, region, and optional endpoint;
@@ -217,7 +221,7 @@ Never commit `.env` or use the included local credentials outside a development 
 
 ## Database
 
-The first migration enables `vector` and `pgcrypto`; the second owns the focused MVP schema; `20260821_0003` adds document intelligence; and `20260821_0004` adds the durable processing queue. Production startup never calls `create_all()`.
+The first migration enables `vector` and `pgcrypto`; the second owns the focused MVP schema; `20260821_0003` adds document intelligence; `20260821_0004` adds the durable processing queue; and `20260822_0005` adds OCR provenance and PDF acknowledgements. Production startup never calls `create_all()`.
 
 The initial relational model, ownership rules, and relationship diagram live in [docs/database.md](docs/database.md).
 
@@ -273,7 +277,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The backend suite covers auth rotation/logout, RBAC, tenant isolation, training visibility, progress, real PDF extraction/versioning, page/chunk persistence, cited RAG answers, prompt-injection boundaries, quizzes, AI mocks, rate limiting, managed secrets, object storage, and seed idempotency. Playwright executes login, learning, quiz/result, ADMIN, and mobile-overflow flows against the Docker/PostgreSQL stack in CI.
+The backend suite covers auth rotation/logout, RBAC, tenant isolation, training visibility, progress, hybrid OCR, versioned acknowledgement evidence, real PDF extraction/versioning, page/chunk persistence, cited RAG answers, prompt-injection boundaries, quizzes, AI mocks, rate limiting, managed secrets, object storage, and seed idempotency. Playwright executes login, learning, quiz/result, PDF processing, ADMIN, and mobile-overflow flows against the Docker/PostgreSQL stack in CI.
 
 ## Security
 
@@ -290,6 +294,7 @@ The backend suite covers auth rotation/logout, RBAC, tenant isolation, training 
 - PDFs use private, tenant-prefixed S3-compatible objects and are returned only after authorization.
 - Vector retrieval derives company and principal from the verified user, applies assignment/publish filters before ranking, and only searches the latest `READY` document version.
 - Document text is explicitly treated as untrusted evidence; commands found inside a PDF never become system instructions.
+- Acknowledgements snapshot the employee identity, attestation, filename, version, checksum, and timestamp; trainings with evidence cannot be deleted.
 
 See [docs/security.md](docs/security.md) for the complete baseline and planned controls.
 
@@ -365,9 +370,12 @@ workflix/
 
 - Immutable PDF versions, page extraction, embeddings, pgvector retrieval, and cited answers.
 
-### V2
+### Document intelligence V2 — complete
 
-- OCR and acknowledgment evidence.
+- Selective OCR, extraction provenance, version-specific acknowledgement evidence, and ADMIN acknowledgement reporting.
+
+### V2+
+
 - Learning paths, certificates, manager analytics, and richer reports.
 
 ### V3
