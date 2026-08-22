@@ -1,11 +1,14 @@
 import { Award, CheckCircle2, Clock3, Download, Route, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { ErrorState, LoadingState } from "../../components/PageState";
-import { api, downloadFile } from "../../services/http";
+import { ApiError, api, downloadFile } from "../../services/http";
 import type { ManagerAnalytics } from "../../types/api";
 
 export default function AdminReportsPage() {
+  const [downloading, setDownloading] = useState<"progress" | "certificates" | null>(null);
+  const [downloadError, setDownloadError] = useState("");
   const query = useQuery({
     queryKey: ["manager-analytics"],
     queryFn: () => api<ManagerAnalytics>("/admin/analytics"),
@@ -13,6 +16,24 @@ export default function AdminReportsPage() {
   if (query.isLoading) return <LoadingState label="Consolidando indicadores…" />;
   if (!query.data) return <ErrorState retry={() => void query.refetch()} />;
   const { kpis } = query.data;
+
+  async function exportReport(kind: "progress" | "certificates") {
+    setDownloadError("");
+    setDownloading(kind);
+    try {
+      await downloadFile(
+        kind === "progress" ? "/admin/reports/progress.csv" : "/admin/reports/certificates.csv",
+        kind === "progress" ? "workflix-progresso.csv" : "workflix-certificados.csv",
+      );
+    } catch (reason) {
+      setDownloadError(
+        reason instanceof ApiError ? reason.message : "Não foi possível exportar o relatório.",
+      );
+    } finally {
+      setDownloading(null);
+    }
+  }
+
   return (
     <div>
       <div className="page-heading admin-heading">
@@ -25,23 +46,27 @@ export default function AdminReportsPage() {
           <button
             className="button secondary"
             type="button"
-            onClick={() =>
-              void downloadFile("/admin/reports/progress.csv", "workflix-progresso.csv")
-            }
+            disabled={downloading !== null}
+            onClick={() => void exportReport("progress")}
           >
-            <Download size={15} /> Progresso CSV
+            <Download size={15} /> {downloading === "progress" ? "Exportando…" : "Progresso CSV"}
           </button>
           <button
             className="button primary"
             type="button"
-            onClick={() =>
-              void downloadFile("/admin/reports/certificates.csv", "workflix-certificados.csv")
-            }
+            disabled={downloading !== null}
+            onClick={() => void exportReport("certificates")}
           >
-            <Download size={15} /> Certificados CSV
+            <Download size={15} />
+            {downloading === "certificates" ? "Exportando…" : "Certificados CSV"}
           </button>
         </div>
       </div>
+      {downloadError && (
+        <div className="form-error global-message" role="alert">
+          {downloadError}
+        </div>
+      )}
       <div className="report-kpis">
         <Kpi icon={<Users />} label="Colaboradores" value={kpis.total_employees} />
         <Kpi icon={<CheckCircle2 />} label="Conclusão" value={`${kpis.completion_percent}%`} />

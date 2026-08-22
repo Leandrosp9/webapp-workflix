@@ -1,5 +1,5 @@
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,7 +73,7 @@ imediatamente pelo canal oficial de segurança.
         "description": "Entenda como tratar dados pessoais de forma consciente em situações reais.",
         "type": TrainingType.VIDEO,
         "thumbnail_url": "/thumbnails/privacy.svg",
-        "video_url": "https://example.com/workflix/lgpd-video-demo",
+        "video_url": None,
         "estimated_minutes": 14,
         "content": """# Dados pessoais merecem cuidado
 
@@ -109,7 +109,7 @@ feedbacks, descreva comportamentos observáveis e o impacto gerado.
         ),
         "type": TrainingType.VIDEO,
         "thumbnail_url": "/thumbnails/leadership.svg",
-        "video_url": "https://example.com/workflix/leadership-video-demo",
+        "video_url": None,
         "estimated_minutes": 22,
         "content": """# Liderar é criar contexto
 
@@ -150,6 +150,165 @@ não para substituir análise e prestação de contas.
 """,
     },
 ]
+
+QUIZ_QUESTIONS = {
+    "Segurança da Informação: atitudes que protegem": [
+        {
+            "text": (
+                "Você recebe um e-mail urgente pedindo acesso a uma planilha restrita. O que fazer?"
+            ),
+            "explanation": (
+                "Interromper a interação e validar o pedido pelo canal oficial reduz o risco "
+                "de phishing."
+            ),
+            "options": [
+                ("Confirmar o pedido por um canal oficial antes de agir.", True),
+                ("Liberar o acesso porque a mensagem parece urgente.", False),
+                ("Encaminhar a mensagem para colegas sem contexto.", False),
+            ],
+        },
+        {
+            "text": "Qual prática protege melhor uma conta corporativa?",
+            "explanation": (
+                "Senhas únicas e autenticação multifator reduzem o impacto de credenciais vazadas."
+            ),
+            "options": [
+                ("Reutilizar uma senha forte em todos os sistemas.", False),
+                ("Usar senha única e autenticação multifator.", True),
+                ("Compartilhar a senha com o time em um documento.", False),
+            ],
+        },
+    ],
+    "LGPD na prática: dados com responsabilidade": [
+        {
+            "text": "Ao criar um formulário interno, quais dados pessoais devem ser solicitados?",
+            "explanation": (
+                "A minimização orienta a coleta apenas dos dados necessários para uma "
+                "finalidade legítima."
+            ),
+            "options": [
+                ("Somente os dados necessários para a finalidade informada.", True),
+                ("Todos os dados disponíveis para uso futuro.", False),
+                ("Dados adicionais sem explicar a finalidade.", False),
+            ],
+        },
+        {
+            "text": "Antes de compartilhar dados de um cliente, qual é a melhor decisão?",
+            "explanation": (
+                "Necessidade, finalidade e canal aprovado devem ser confirmados antes do "
+                "compartilhamento."
+            ),
+            "options": [
+                ("Enviar para agilizar e registrar depois.", False),
+                ("Confirmar necessidade, destinatário e canal aprovado.", True),
+                ("Copiar toda a equipe para dar transparência.", False),
+            ],
+        },
+    ],
+    "Comunicação que conecta times": [
+        {
+            "text": "O que torna uma mensagem de trabalho mais acionável?",
+            "explanation": (
+                "Contexto, decisão, responsável e prazo reduzem ambiguidades e retrabalho."
+            ),
+            "options": [
+                ("Contexto, ação esperada, responsável e prazo.", True),
+                ("Uma mensagem curta sem explicar o objetivo.", False),
+                ("Muitos detalhes sem indicar a próxima ação.", False),
+            ],
+        },
+        {
+            "text": "Como oferecer um feedback útil?",
+            "explanation": (
+                "Feedbacks objetivos descrevem comportamento observável, impacto e próximo passo."
+            ),
+            "options": [
+                ("Avaliar a personalidade da pessoa.", False),
+                ("Descrever comportamento, impacto e acordo futuro.", True),
+                ("Esperar meses para reunir vários problemas.", False),
+            ],
+        },
+    ],
+    "Liderança para ambientes híbridos": [
+        {
+            "text": "O que favorece autonomia em um time distribuído?",
+            "explanation": (
+                "Resultados esperados e critérios de decisão explícitos permitem autonomia "
+                "com alinhamento."
+            ),
+            "options": [
+                ("Centralizar todas as decisões na liderança.", False),
+                ("Explicitar resultados, acordos e critérios de decisão.", True),
+                ("Aumentar a quantidade de reuniões sem pauta.", False),
+            ],
+        },
+        {
+            "text": "Como acompanhar o trabalho híbrido de forma saudável?",
+            "explanation": (
+                "O acompanhamento deve observar entregas e remover impedimentos, não vigiar "
+                "presença."
+            ),
+            "options": [
+                ("Medir disponibilidade minuto a minuto.", False),
+                ("Acompanhar resultados e remover impedimentos.", True),
+                ("Evitar conversas de alinhamento.", False),
+            ],
+        },
+    ],
+    "Ética e integridade nas decisões": [
+        {
+            "text": "Como agir diante de um possível conflito de interesses?",
+            "explanation": (
+                "Declarar o conflito e buscar orientação preserva a imparcialidade da decisão."
+            ),
+            "options": [
+                ("Declarar o conflito e consultar o canal responsável.", True),
+                ("Prosseguir sem registrar para evitar atrasos.", False),
+                ("Transferir a decisão sem explicar o motivo.", False),
+            ],
+        },
+        {
+            "text": (
+                "Um fornecedor oferece uma vantagem pessoal durante uma negociação. O que fazer?"
+            ),
+            "explanation": (
+                "Vantagens indevidas devem ser recusadas e comunicadas conforme a política "
+                "de integridade."
+            ),
+            "options": [
+                ("Aceitar se o valor parecer baixo.", False),
+                ("Recusar e comunicar pelo canal de integridade.", True),
+                ("Dividir a vantagem com a equipe.", False),
+            ],
+        },
+    ],
+    "Fundamentos de IA responsável": [
+        {
+            "text": "Qual cuidado vem antes de enviar conteúdo a uma ferramenta de IA?",
+            "explanation": (
+                "Dados confidenciais só podem ser usados em ferramentas e fluxos formalmente "
+                "aprovados."
+            ),
+            "options": [
+                ("Remover o título do documento e enviar o restante.", False),
+                ("Confirmar aprovação da ferramenta e proteção dos dados.", True),
+                ("Enviar primeiro e verificar a política depois.", False),
+            ],
+        },
+        {
+            "text": "Quem responde pelo uso final de uma saída gerada por IA?",
+            "explanation": (
+                "A revisão de fatos, fontes, linguagem e vieses permanece uma responsabilidade "
+                "humana."
+            ),
+            "options": [
+                ("A pessoa que revisa e utiliza o resultado.", True),
+                ("Somente o fornecedor do modelo.", False),
+                ("Ninguém, porque a saída é automática.", False),
+            ],
+        },
+    ],
+}
 
 
 async def upsert_users(session: AsyncSession, company: Company) -> dict[str, User]:
@@ -205,55 +364,28 @@ async def upsert_trainings(session: AsyncSession, company: Company, admin: User)
 async def ensure_quiz(session: AsyncSession, company: Company, training: Training) -> None:
     if await session.scalar(select(Quiz.id).where(Quiz.training_id == training.id)):
         return
+    definitions = QUIZ_QUESTIONS[training.title]
     quiz = Quiz(
         company_id=company.id,
         training_id=training.id,
         passing_score=70,
         questions=[
             Question(
-                text="Qual atitude representa a melhor aplicação deste conteúdo?",
-                explanation="A opção correta prioriza os canais oficiais e uma decisão consciente.",
-                position=0,
+                text=definition["text"],
+                explanation=definition["explanation"],
+                position=question_position,
                 options=[
                     QuestionOption(
-                        text="Aplicar a orientação e confirmar dúvidas pelo canal oficial.",
-                        is_correct=True,
-                        position=0,
-                    ),
-                    QuestionOption(
-                        text="Ignorar a orientação quando a rotina estiver corrida.",
-                        is_correct=False,
-                        position=1,
-                    ),
-                    QuestionOption(
-                        text="Compartilhar informações sem verificar o contexto.",
-                        is_correct=False,
-                        position=2,
-                    ),
+                        text=option_text,
+                        is_correct=is_correct,
+                        position=option_position,
+                    )
+                    for option_position, (option_text, is_correct) in enumerate(
+                        definition["options"]
+                    )
                 ],
-            ),
-            Question(
-                text="O que fazer quando surgir uma situação ambígua?",
-                explanation="Interromper e confirmar evita decisões precipitadas e reduz riscos.",
-                position=1,
-                options=[
-                    QuestionOption(
-                        text="Decidir rapidamente sem registrar o contexto.",
-                        is_correct=False,
-                        position=0,
-                    ),
-                    QuestionOption(
-                        text="Parar, registrar o contexto e buscar orientação.",
-                        is_correct=True,
-                        position=1,
-                    ),
-                    QuestionOption(
-                        text="Repassar o problema para qualquer pessoa disponível.",
-                        is_correct=False,
-                        position=2,
-                    ),
-                ],
-            ),
+            )
+            for question_position, definition in enumerate(definitions)
         ],
     )
     session.add(quiz)
@@ -343,26 +475,35 @@ async def seed_session(session: AsyncSession) -> None:
                     )
                 )
     demo_employee = users["employee@workflix.demo"]
-    progress_values = {trainings[0].id: 45, trainings[1].id: 100}
-    for training_id, percent in progress_values.items():
-        progress = await session.scalar(
-            select(UserProgress).where(
-                UserProgress.user_id == demo_employee.id,
-                UserProgress.training_id == training_id,
-            )
-        )
-        now = datetime.now(UTC)
-        if progress is None:
-            session.add(
-                UserProgress(
-                    company_id=company.id,
-                    user_id=demo_employee.id,
-                    training_id=training_id,
-                    progress_percent=percent,
-                    started_at=now,
-                    completed_at=now if percent == 100 else None,
+    progress_plan = {
+        "employee@workflix.demo": {0: 45, 1: 100},
+        "beatriz.souza@workflix.demo": {0: 100, 1: 100, 2: 65, 3: 100, 4: 20},
+        "caio.martins@workflix.demo": {0: 100, 2: 100, 3: 40},
+        "daniela.lima@workflix.demo": {1: 100, 2: 35, 4: 100},
+        "eduardo.rocha@workflix.demo": {0: 100, 1: 75, 3: 100, 4: 25},
+    }
+    now = datetime.now(UTC)
+    for employee_offset, (email, values) in enumerate(progress_plan.items(), start=1):
+        employee = users[email]
+        for training_index, percent in values.items():
+            training = trainings[training_index]
+            started_at = now - timedelta(days=employee_offset * 3 + training_index)
+            progress = await session.scalar(
+                select(UserProgress).where(
+                    UserProgress.user_id == employee.id,
+                    UserProgress.training_id == training.id,
                 )
             )
+            if progress is None:
+                progress = UserProgress(
+                    company_id=company.id,
+                    user_id=employee.id,
+                    training_id=training.id,
+                )
+                session.add(progress)
+            progress.progress_percent = percent
+            progress.started_at = started_at
+            progress.completed_at = started_at + timedelta(days=2) if percent == 100 else None
     await session.flush()
     await ensure_learning_path(
         session,

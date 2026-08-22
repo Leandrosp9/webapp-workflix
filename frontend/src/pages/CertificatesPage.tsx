@@ -1,17 +1,38 @@
 import { Award, Download, ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { ErrorState, LoadingState } from "../components/PageState";
-import { downloadFile, api } from "../services/http";
+import { ApiError, downloadFile, api } from "../services/http";
 import type { Certificate } from "../types/api";
 
 export default function CertificatesPage() {
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState("");
   const query = useQuery({
     queryKey: ["employee-certificates"],
     queryFn: () => api<Certificate[]>("/employee/certificates"),
   });
   if (query.isLoading) return <LoadingState label="Buscando suas conquistas…" />;
   if (!query.data) return <ErrorState retry={() => void query.refetch()} />;
+
+  async function downloadCertificate(certificate: Certificate) {
+    setDownloadError("");
+    setDownloadingId(certificate.id);
+    try {
+      await downloadFile(
+        `/certificates/${certificate.id}/pdf`,
+        `workflix-${certificate.learning_path_title}.pdf`,
+      );
+    } catch (reason) {
+      setDownloadError(
+        reason instanceof ApiError ? reason.message : "Não foi possível baixar o certificado.",
+      );
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
   return (
     <div>
       <div className="page-heading">
@@ -21,6 +42,11 @@ export default function CertificatesPage() {
           <p>Baixe os certificados emitidos ao concluir suas trilhas.</p>
         </div>
       </div>
+      {downloadError && (
+        <div className="form-error global-message" role="alert">
+          {downloadError}
+        </div>
+      )}
       {query.data.length === 0 ? (
         <div className="empty-hero">
           <Award />
@@ -45,14 +71,11 @@ export default function CertificatesPage() {
               <button
                 className="button primary"
                 type="button"
-                onClick={() =>
-                  void downloadFile(
-                    `/certificates/${certificate.id}/pdf`,
-                    `workflix-${certificate.learning_path_title}.pdf`,
-                  )
-                }
+                disabled={downloadingId === certificate.id}
+                onClick={() => void downloadCertificate(certificate)}
               >
-                <Download size={15} /> Baixar PDF
+                <Download size={15} />
+                {downloadingId === certificate.id ? "Preparando PDF…" : "Baixar PDF"}
               </button>
             </article>
           ))}

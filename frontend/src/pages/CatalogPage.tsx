@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { BookOpen } from "lucide-react";
 
 import { ErrorState, LoadingState } from "../components/PageState";
 import { TrainingCard } from "../components/TrainingCard";
@@ -21,11 +22,19 @@ export default function CatalogPage() {
           <p>Todo o conteúdo atribuído a você, em um só lugar.</p>
         </div>
       </div>
-      <div className="training-grid wide">
-        {query.data.map((item) => (
-          <TrainingCard key={item.id} training={item} />
-        ))}
-      </div>
+      {query.data.length === 0 ? (
+        <div className="empty-hero">
+          <BookOpen />
+          <h2>Seu catálogo está pronto para receber conteúdo.</h2>
+          <p>Os treinamentos atribuídos pela empresa aparecerão aqui.</p>
+        </div>
+      ) : (
+        <div className="training-grid wide">
+          {query.data.map((item) => (
+            <TrainingCard key={item.id} training={item} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

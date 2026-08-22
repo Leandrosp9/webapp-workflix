@@ -27,6 +27,8 @@ export default function TrainingPlayerPage() {
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState("");
   const [ragError, setRagError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const query = useQuery({
     queryKey: ["training", trainingId],
     queryFn: () => api<Training>(`/employee/trainings/${trainingId}`),
@@ -85,6 +87,20 @@ export default function TrainingPlayerPage() {
       ),
   });
 
+  async function handlePdfDownload() {
+    setDownloadError("");
+    setDownloadingPdf(true);
+    try {
+      await downloadPdf(trainingId);
+    } catch (reason) {
+      setDownloadError(
+        reason instanceof ApiError ? reason.message : "Não foi possível baixar o material.",
+      );
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
+
   if (query.isLoading) return <LoadingState label="Abrindo treinamento…" />;
   if (!query.data) return <ErrorState retry={() => void query.refetch()} />;
   const training = query.data;
@@ -108,12 +124,17 @@ export default function TrainingPlayerPage() {
               <span>{percent}% concluído</span>
             </div>
           </div>
-          {training.type === "VIDEO" && training.video_url && (
+          {training.type === "VIDEO" && (
             <div className="video-player">
               <PlayCircle size={58} />
-              <a href={training.video_url} target="_blank" rel="noreferrer">
-                Abrir vídeo em nova aba
-              </a>
+              <h2>Conteúdo em vídeo</h2>
+              {training.video_url ? (
+                <a href={training.video_url} target="_blank" rel="noreferrer">
+                  Abrir vídeo em nova aba
+                </a>
+              ) : (
+                <p>O material de apoio deste treinamento está disponível abaixo.</p>
+              )}
             </div>
           )}
           {training.type === "PDF" && training.has_pdf && (
@@ -125,10 +146,12 @@ export default function TrainingPlayerPage() {
                 <button
                   className="button secondary"
                   type="button"
-                  onClick={() => void downloadPdf(training.id)}
+                  disabled={downloadingPdf}
+                  onClick={() => void handlePdfDownload()}
                 >
-                  Baixar material
+                  {downloadingPdf ? "Preparando download…" : "Baixar material"}
                 </button>
+                {downloadError && <div className="form-error">{downloadError}</div>}
               </div>
               {acknowledgementQuery.data && (
                 <section
@@ -256,9 +279,19 @@ export default function TrainingPlayerPage() {
             </button>
           )}
           {percent < 50 && (
-            <button className="text-button" type="button" onClick={() => progress.mutate(50)}>
+            <button
+              className="text-button"
+              type="button"
+              disabled={progress.isPending}
+              onClick={() => progress.mutate(50)}
+            >
               Salvar progresso em 50%
             </button>
+          )}
+          {progress.isError && (
+            <div className="form-error sidebar-feedback" role="alert">
+              Não foi possível salvar o progresso. Tente novamente.
+            </div>
           )}
         </aside>
       </div>

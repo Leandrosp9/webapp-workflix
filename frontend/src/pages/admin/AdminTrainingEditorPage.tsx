@@ -13,7 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { LoadingState } from "../../components/PageState";
+import { ErrorState, LoadingState } from "../../components/PageState";
 import { ApiError, api } from "../../services/http";
 import type {
   AdminAcknowledgementSummary,
@@ -145,7 +145,9 @@ export default function AdminTrainingEditorPage() {
           thumbnail_url: form.thumbnail_url || null,
         }),
       }),
+    onMutate: clearFeedback,
     onSuccess: (saved) => {
+      setError("");
       setMessage("Treinamento salvo.");
       void client.invalidateQueries({ queryKey: ["admin-trainings"] });
       if (isNew) void navigate(`/admin/trainings/${saved.id}`, { replace: true });
@@ -166,7 +168,11 @@ export default function AdminTrainingEditorPage() {
           }),
         },
       ),
-    onSuccess: ({ draft }) => setForm((current) => ({ ...current, ...draft, type: "ARTICLE" })),
+    onMutate: clearFeedback,
+    onSuccess: ({ draft }) => {
+      setForm((current) => ({ ...current, ...draft, type: "ARTICLE" }));
+      setMessage("Rascunho gerado. Revise o conteúdo antes de salvar e publicar.");
+    },
     onError: handleError,
   });
   const saveQuiz = useMutation({
@@ -175,6 +181,7 @@ export default function AdminTrainingEditorPage() {
         method: "PUT",
         body: JSON.stringify(quiz),
       }),
+    onMutate: clearFeedback,
     onSuccess: (saved) => {
       setQuiz(saved);
       setMessage("Avaliação salva.");
@@ -191,7 +198,11 @@ export default function AdminTrainingEditorPage() {
           passing_score: quiz.passing_score,
         }),
       }),
-    onSuccess: ({ draft }) => setQuiz(draft),
+    onMutate: clearFeedback,
+    onSuccess: ({ draft }) => {
+      setQuiz(draft);
+      setMessage("Avaliação gerada. Revise as respostas corretas antes de salvar.");
+    },
     onError: handleError,
   });
   const assign = useMutation({
@@ -200,6 +211,7 @@ export default function AdminTrainingEditorPage() {
         method: "POST",
         body: JSON.stringify({ employee_ids: selectedEmployees }),
       }),
+    onMutate: clearFeedback,
     onSuccess: ({ assigned, updated }) => {
       setMessage(`${assigned} novas atribuições e ${updated} atualizadas.`);
       void acknowledgementQuery.refetch();
@@ -212,6 +224,7 @@ export default function AdminTrainingEditorPage() {
       data.append("file", file);
       return api<Training>(`/trainings/${trainingId}/pdf`, { method: "POST", body: data });
     },
+    onMutate: clearFeedback,
     onSuccess: (saved) => {
       setForm((current) => ({ ...current, type: "PDF" }));
       if (saved.document_version) {
@@ -228,6 +241,7 @@ export default function AdminTrainingEditorPage() {
   const processDocument = useMutation({
     mutationFn: () =>
       api<DocumentVersion>(`/trainings/${trainingId}/document/process`, { method: "POST" }),
+    onMutate: clearFeedback,
     onSuccess: (version) => {
       client.setQueryData(["training-document", trainingId], version);
       setMessage("Reprocessamento solicitado.");
@@ -237,7 +251,12 @@ export default function AdminTrainingEditorPage() {
   });
 
   function handleError(reason: unknown) {
+    setMessage("");
     setError(reason instanceof ApiError ? reason.message : "Não foi possível concluir a operação.");
+  }
+  function clearFeedback() {
+    setError("");
+    setMessage("");
   }
   function updateQuestion(questionIndex: number, field: "text" | "explanation", value: string) {
     setQuiz((current) => ({
@@ -264,6 +283,9 @@ export default function AdminTrainingEditorPage() {
   }
 
   if (!isNew && trainingQuery.isLoading) return <LoadingState />;
+  if (!isNew && !trainingQuery.data) {
+    return <ErrorState retry={() => void trainingQuery.refetch()} />;
+  }
   return (
     <div className="editor-page">
       <Link className="back-link" to="/admin/trainings">
@@ -280,7 +302,7 @@ export default function AdminTrainingEditorPage() {
             className="button secondary"
             type="button"
             onClick={() => generateTraining.mutate()}
-            disabled={generateTraining.isPending}
+            disabled={generateTraining.isPending || form.title.trim().length < 3}
           >
             <Sparkles size={16} /> {generateTraining.isPending ? "Gerando…" : "Criar com Gemini"}
           </button>
@@ -288,14 +310,27 @@ export default function AdminTrainingEditorPage() {
             className="button primary"
             type="button"
             onClick={() => saveTraining.mutate()}
-            disabled={saveTraining.isPending}
+            disabled={
+              saveTraining.isPending ||
+              form.title.trim().length < 3 ||
+              form.description.trim().length < 3 ||
+              (form.type === "ARTICLE" && form.content.trim().length < 3)
+            }
           >
             <Save size={16} /> Salvar
           </button>
         </div>
       </div>
-      {error && <div className="form-error global-message">{error}</div>}
-      {message && <div className="success-message">{message}</div>}
+      {error && (
+        <div className="form-error global-message" role="alert">
+          {error}
+        </div>
+      )}
+      {message && (
+        <div className="success-message global-message" role="status">
+          {message}
+        </div>
+      )}
       <section className="editor-card">
         <div className="editor-card-heading">
           <span>01</span>
@@ -582,8 +617,13 @@ export default function AdminTrainingEditorPage() {
             >
               <Plus size={15} /> Adicionar questão
             </button>
-            <button className="button primary" type="button" onClick={() => saveQuiz.mutate()}>
-              <Save size={15} /> Salvar avaliação
+            <button
+              className="button primary"
+              type="button"
+              disabled={saveQuiz.isPending}
+              onClick={() => saveQuiz.mutate()}
+            >
+              <Save size={15} /> {saveQuiz.isPending ? "Salvando…" : "Salvar avaliação"}
             </button>
           </div>
         </section>

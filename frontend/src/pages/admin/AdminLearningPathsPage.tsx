@@ -19,6 +19,7 @@ export default function AdminLearningPathsPage() {
   const [dueDate, setDueDate] = useState("");
   const [form, setForm] = useState({ title: "", description: "" });
   const [message, setMessage] = useState("");
+  const [messageIsError, setMessageIsError] = useState(false);
   const paths = useQuery({
     queryKey: ["learning-paths"],
     queryFn: () => api<LearningPath[]>("/learning-paths"),
@@ -55,6 +56,7 @@ export default function AdminLearningPathsPage() {
       }),
     onSuccess: async (path) => {
       setSelectedId(path.id);
+      setMessageIsError(false);
       setMessage("Trilha criada como rascunho. Agora ordene os conteúdos.");
       await refresh();
     },
@@ -73,6 +75,7 @@ export default function AdminLearningPathsPage() {
       });
     },
     onSuccess: async () => {
+      setMessageIsError(false);
       setMessage("Conteúdos e ordem salvos.");
       await refresh();
     },
@@ -85,6 +88,7 @@ export default function AdminLearningPathsPage() {
         body: JSON.stringify({ status: "PUBLISHED" }),
       }),
     onSuccess: async () => {
+      setMessageIsError(false);
       setMessage("Trilha publicada e pronta para atribuição.");
       await refresh();
     },
@@ -97,6 +101,7 @@ export default function AdminLearningPathsPage() {
         body: JSON.stringify({ employee_ids: employeeIds, due_date: dueDate || null }),
       }),
     onSuccess: async () => {
+      setMessageIsError(false);
       setMessage("Trilha atribuída. Os treinamentos já estão disponíveis aos colaboradores.");
       setEmployeeIds([]);
       await refresh();
@@ -105,6 +110,7 @@ export default function AdminLearningPathsPage() {
   });
 
   function showError(reason: unknown) {
+    setMessageIsError(true);
     setMessage(reason instanceof ApiError ? reason.message : "Não foi possível concluir.");
   }
 
@@ -132,12 +138,21 @@ export default function AdminLearningPathsPage() {
             setSelectedId(null);
             setForm({ title: "", description: "" });
             setDraftItems([]);
+            setMessage("");
+            setMessageIsError(false);
           }}
         >
           <Plus size={16} /> Nova trilha
         </button>
       </div>
-      {message && <div className="form-message global-message">{message}</div>}
+      {message && (
+        <div
+          className={`${messageIsError ? "form-error" : "form-message"} global-message`}
+          role={messageIsError ? "alert" : "status"}
+        >
+          {message}
+        </div>
+      )}
       <div className="path-admin-layout">
         <aside className="path-list panel-card">
           <span className="section-kicker">Trilhas cadastradas</span>
@@ -175,6 +190,7 @@ export default function AdminLearningPathsPage() {
               <input
                 value={form.title}
                 minLength={3}
+                disabled={selected?.status === "PUBLISHED"}
                 onChange={(event) => setForm({ ...form, title: event.target.value })}
               />
             </label>
@@ -182,10 +198,16 @@ export default function AdminLearningPathsPage() {
               Descrição
               <textarea
                 value={form.description}
+                disabled={selected?.status === "PUBLISHED"}
                 onChange={(event) => setForm({ ...form, description: event.target.value })}
               />
             </label>
           </div>
+          {selected?.status === "PUBLISHED" && (
+            <p className="form-note">
+              Trilha publicada: a estrutura permanece bloqueada para preservar as atribuições.
+            </p>
+          )}
           {!selected ? (
             <button
               className="button primary path-primary-action"

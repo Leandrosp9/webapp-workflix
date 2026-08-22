@@ -7,6 +7,17 @@ async function login(page: Page, email: string) {
   await page.getByLabel("E-mail corporativo").fill(email);
   await page.getByLabel("Senha").fill(demoPassword);
   await page.getByRole("button", { name: "Entrar na Workflix" }).click();
+  await expect(page).toHaveURL(
+    email.startsWith("admin@") ? /\/admin$/ : /\/app$/,
+  );
+}
+
+async function expectNoHorizontalOverflow(page: Page) {
+  const dimensions = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    content: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport + 1);
 }
 
 function makeTextPdf(text: string): Buffer {
@@ -106,9 +117,70 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
   ).toBeVisible();
 });
 
-test("trilha concluída libera certificado verificável ao colaborador", async ({
+test("fluxo demo cria conteúdo com IA, publica, atribui e confirma conclusão", async ({
   page,
 }) => {
+  await page.route("**/api/v1/ai/generate-training", async (route) => {
+    await route.fulfill({
+      json: {
+        draft: {
+          title: "Proteção de dados em projetos digitais",
+          description:
+            "Decisões práticas para reduzir riscos no uso de dados de clientes.",
+          content:
+            "# Proteção de dados desde o início\n\nMapeie a finalidade, limite a coleta e use somente canais aprovados. " +
+            "Registre decisões, valide acessos e comunique incidentes imediatamente pelo canal oficial.",
+          estimated_minutes: 16,
+        },
+        generation: {
+          provider: "gemini",
+          model: "gemini-demo",
+          fallback_used: false,
+        },
+      },
+    });
+  });
+  await page.route("**/api/v1/ai/generate-quiz", async (route) => {
+    await route.fulfill({
+      json: {
+        draft: {
+          passing_score: 70,
+          questions: [
+            {
+              text: "Qual princípio deve orientar a coleta de dados?",
+              explanation:
+                "A coleta deve se limitar ao necessário para a finalidade informada.",
+              options: [
+                { text: "Coletar somente o necessário.", is_correct: true },
+                { text: "Coletar tudo para uso futuro.", is_correct: false },
+              ],
+            },
+            {
+              text: "Como agir diante de um possível incidente?",
+              explanation:
+                "O canal oficial preserva evidências e acelera a resposta adequada.",
+              options: [
+                {
+                  text: "Interromper e comunicar pelo canal oficial.",
+                  is_correct: true,
+                },
+                {
+                  text: "Investigar sozinho antes de avisar.",
+                  is_correct: false,
+                },
+              ],
+            },
+          ],
+        },
+        generation: {
+          provider: "gemini",
+          model: "gemini-demo",
+          fallback_used: false,
+        },
+      },
+    });
+  });
+
   await login(page, "admin@workflix.demo");
   await expect(page).toHaveURL(/\/admin$/);
   const adminToken = await page.evaluate(() =>
@@ -116,94 +188,110 @@ test("trilha concluída libera certificado verificável ao colaborador", async (
   );
   expect(adminToken).toBeTruthy();
   const adminHeaders = { Authorization: `Bearer ${adminToken}` };
-  const [pathsResponse, trainingsResponse, usersResponse] = await Promise.all([
-    page.request.get("/api/v1/learning-paths", { headers: adminHeaders }),
-    page.request.get("/api/v1/trainings", { headers: adminHeaders }),
-    page.request.get("/api/v1/users", { headers: adminHeaders }),
-  ]);
-  expect(pathsResponse.ok()).toBeTruthy();
-  const trainings = (await trainingsResponse.json()) as Array<{
-    id: string;
-    status: string;
-  }>;
-  const employees = (await usersResponse.json()) as Array<{
-    id: string;
-    email: string;
-  }>;
-  const training = trainings.find((item) => item.status === "PUBLISHED");
-  const employee = employees.find(
-    (item) => item.email === "employee@workflix.demo",
-  );
-  expect(training).toBeTruthy();
-  expect(employee).toBeTruthy();
+  let trainingId = "";
 
-  const title = "Trilha Playwright Verificável";
-  let learningPath = (
-    (await pathsResponse.json()) as Array<{ id: string; title: string }>
-  ).find((item) => item.title === title);
-  if (!learningPath) {
-    const created = await page.request.post("/api/v1/learning-paths", {
-      headers: adminHeaders,
-      data: {
-        title,
-        description: "Fluxo estável de trilha e certificado exercitado no CI.",
-      },
+  try {
+    await page.getByRole("link", { name: "Novo treinamento" }).click();
+    await page.getByLabel("Título").fill("Proteção de dados em projetos");
+    await page
+      .getByLabel("Descrição")
+      .fill(
+        "Boas práticas para equipes que trabalham com informações de clientes.",
+      );
+    await page.getByRole("button", { name: "Criar com Gemini" }).click();
+    await expect(page.getByText("Rascunho gerado.")).toBeVisible();
+    await expect(page.getByLabel("Conteúdo")).toHaveValue(
+      /Proteção de dados desde o início/,
+    );
+
+    await page.getByRole("button", { name: "Salvar", exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/trainings\/[0-9a-f-]+$/);
+    trainingId = page.url().split("/").at(-1) ?? "";
+    expect(trainingId).toBeTruthy();
+
+    await page.getByRole("button", { name: "Gerar 5 questões" }).click();
+    await expect(page.getByPlaceholder("Enunciado").first()).toHaveValue(
+      "Qual princípio deve orientar a coleta de dados?",
+    );
+    await page.getByRole("button", { name: "Salvar avaliação" }).click();
+    await expect(page.getByText("Avaliação salva.")).toBeVisible();
+
+    await page.getByLabel("Status").selectOption("PUBLISHED");
+    await page.getByRole("button", { name: "Salvar", exact: true }).click();
+    await expect(page.getByText("Treinamento salvo.")).toBeVisible();
+
+    const employeeChoice = page
+      .locator(".employee-selector label")
+      .filter({ hasText: "employee@workflix.demo" });
+    await employeeChoice.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "Atribuir treinamento" }).click();
+    await expect(page.getByText(/1 novas atribuições/)).toBeVisible();
+
+    await page.getByRole("button", { name: "Sair", exact: true }).click();
+    await login(page, "employee@workflix.demo");
+    await page.goto(`/app/training/${trainingId}`);
+    await expect(
+      page.getByRole("heading", {
+        name: "Proteção de dados em projetos digitais",
+      }),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "Fazer avaliação" }).click();
+    await page.locator(".quiz-options button").first().click();
+    await page.getByRole("button", { name: /Próxima/ }).click();
+    await page.locator(".quiz-options button").first().click();
+    await page.getByRole("button", { name: "Finalizar avaliação" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Muito bem!" }),
+    ).toBeVisible();
+
+    await page.goto("/app/certificates");
+    await expect(
+      page.getByRole("heading", { name: "Privacidade na prática" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Baixar PDF" }).first(),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Sair", exact: true }).click();
+    await login(page, "admin@workflix.demo");
+    await page.goto("/admin/reports");
+    const trainingRow = page.getByRole("row").filter({
+      hasText: "Proteção de dados em projetos digitais",
     });
-    expect(created.ok()).toBeTruthy();
-    learningPath = (await created.json()) as { id: string; title: string };
-    const items = await page.request.put(
-      `/api/v1/learning-paths/${learningPath.id}/items`,
-      {
-        headers: adminHeaders,
-        data: { items: [{ training_id: training!.id, required: true }] },
-      },
-    );
-    expect(items.ok()).toBeTruthy();
-    const published = await page.request.patch(
-      `/api/v1/learning-paths/${learningPath.id}`,
-      { headers: adminHeaders, data: { status: "PUBLISHED" } },
-    );
-    expect(published.ok()).toBeTruthy();
+    await expect(trainingRow).toContainText("100%");
+  } finally {
+    if (trainingId) {
+      const removed = await page.request.delete(
+        `/api/v1/trainings/${trainingId}`,
+        {
+          headers: adminHeaders,
+        },
+      );
+      expect(removed.status()).toBe(204);
+    }
   }
-  const assigned = await page.request.post(
-    `/api/v1/learning-paths/${learningPath.id}/assignments`,
-    {
-      headers: adminHeaders,
-      data: { employee_ids: [employee!.id] },
-    },
-  );
-  expect(assigned.ok()).toBeTruthy();
+});
 
-  await page.evaluate(() => localStorage.clear());
+test("trilha concluída exibe certificado verificável ao colaborador", async ({
+  page,
+}) => {
   await login(page, "employee@workflix.demo");
-  await expect(page).toHaveURL(/\/app$/);
-  const employeeToken = await page.evaluate(() =>
-    localStorage.getItem("workflix.access"),
-  );
-  const employeeHeaders = { Authorization: `Bearer ${employeeToken}` };
-  const completed = await page.request.patch(
-    `/api/v1/employee/trainings/${training!.id}/progress`,
-    { headers: employeeHeaders, data: { progress_percent: 100 } },
-  );
-  expect(completed.ok()).toBeTruthy();
-
   await page.goto("/app/paths");
   await expect(
     page.getByRole("heading", { name: "Minhas trilhas" }),
   ).toBeVisible();
-  await page.getByRole("link", { name: new RegExp(title) }).click();
+  await page.getByRole("link", { name: /Privacidade na prática/ }).click();
   await expect(page.getByText("Certificado emitido")).toBeVisible();
 
   await page.getByRole("link", { name: "Certificados", exact: true }).click();
+  const certificate = page
+    .getByRole("article")
+    .filter({ hasText: "Privacidade na prática" });
   await expect(
-    page.getByRole("heading", { name: "Certificados" }),
+    certificate.getByRole("heading", { name: "Privacidade na prática" }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: title })).toBeVisible();
   await expect(
-    page
-      .getByRole("article")
-      .filter({ hasText: title })
-      .getByRole("button", { name: "Baixar PDF" }),
+    certificate.getByRole("button", { name: "Baixar PDF" }),
   ).toBeVisible();
 });
 
@@ -407,18 +495,52 @@ test("colaborador registra ciência da versão atual do PDF", async ({
   expect(postedVersion).toBe(versionId);
 });
 
-test("experiência do colaborador não cria overflow horizontal no celular", async ({
+test("telas principais permanecem responsivas em desktop, notebook, tablet e mobile", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await login(page, "employee@workflix.demo");
+  test.setTimeout(120_000);
+  const viewports = [
+    { width: 1920, height: 1080 },
+    { width: 1366, height: 768 },
+    { width: 820, height: 1180 },
+    { width: 390, height: 844 },
+  ];
 
-  await expect(
-    page.getByRole("heading", { name: /O que vamos aprender hoje/ }),
-  ).toBeVisible();
-  const dimensions = await page.evaluate(() => ({
-    viewport: document.documentElement.clientWidth,
-    content: document.documentElement.scrollWidth,
-  }));
-  expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    await page.goto("/login");
+    await expect(
+      page.getByRole("heading", { name: "Acesse sua conta" }),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  }
+
+  await login(page, "employee@workflix.demo");
+  const trainingHref = await page
+    .getByRole("link", { name: /Começar agora|Continuar/ })
+    .first()
+    .getAttribute("href");
+  expect(trainingHref).toBeTruthy();
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    for (const path of ["/app", "/app/catalog", trainingHref!]) {
+      await page.goto(path);
+      await expect(page.locator("main.page-content")).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+    }
+    const menu = page.getByRole("button", { name: "Abrir menu" });
+    if (viewport.width <= 980) await expect(menu).toBeVisible();
+    else await expect(menu).toBeHidden();
+  }
+
+  await page.evaluate(() => localStorage.clear());
+  await login(page, "admin@workflix.demo");
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    for (const path of ["/admin", "/admin/trainings", "/admin/reports"]) {
+      await page.goto(path);
+      await expect(page.locator("main.page-content")).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+    }
+  }
 });

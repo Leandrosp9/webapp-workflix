@@ -1,260 +1,158 @@
 # Workflix
 
-![Workflix — corporate learning and knowledge platform](docs/assets/workflix-banner.svg)
+![Workflix — Corporate Learning & Knowledge Platform](docs/assets/workflix-banner.svg)
 
-Workflix is a multi-tenant corporate learning and knowledge platform designed to centralize training, procedures, documents, assessments, and evidence of progress in one measurable experience.
+**Corporate Learning & Knowledge Platform**
 
-> Project status: the focused Workflix MVP, document-intelligence V2, and learning-management V2+ run end to end with tenant isolation, immutable PDF evidence, ordered learning paths, verifiable certificates, exports, and management analytics.
+Workflix is a portfolio-ready SaaS product that brings corporate training, internal knowledge,
+assessments, learning paths, certificates, and management visibility into one secure experience.
 
-## Overview
+> Release status: **PORTFOLIO RELEASE READY** — the product scope is complete and validated end to
+> end for demonstration.
 
-Companies often distribute important knowledge across shared drives, email threads, video links, PDFs, and internal folders. That fragmentation makes simple operational questions surprisingly hard: Who completed mandatory training? Which procedure is current? Who still needs to acknowledge a policy? What content applies to a role?
+## The Problem
 
-Workflix treats those questions as a product and architecture problem, not as a generic CRUD exercise. The platform combines a polished discovery experience with tenant-safe workflows, durable completion evidence, document intelligence, and operational observability.
+Companies keep training, procedures, videos, and internal documents across shared drives, email,
+and disconnected tools. Employees struggle to find the current material, while managers cannot
+reliably answer who received, started, completed, or acknowledged each requirement.
 
-## Problem
+That fragmentation creates operational risk, repeated administrative work, and weak evidence for
+mandatory learning.
 
-Fragmented corporate knowledge creates concrete risk:
+## The Solution
 
-- employees cannot reliably find the current procedure;
-- managers lack completion and expiration visibility;
-- administrators repeat manual assignment and reporting work;
-- companies cannot prove that a person completed or acknowledged required material;
-- AI over private documents can cross security boundaries when tenancy is added as an afterthought.
+Workflix provides a company-scoped learning hub where administrators publish and assign content,
+employees continue from where they stopped, quizzes confirm understanding, ordered paths guide
+development, and verifiable certificates prove completion. Analytics and CSV exports turn the same
+source of truth into management visibility.
 
-## Solution
-
-Workflix provides one company-scoped catalog for learning and knowledge, backed by explicit assignments, progress, assessments, document versions, and audit events. Its architecture starts multi-tenant, migration-owned, API-first, and provider-neutral so later AI features do not compromise the core security model.
+The product combines a premium content-discovery experience with explicit multi-tenant boundaries,
+durable document processing, and human-reviewed cloud AI authoring.
 
 ## Features
 
-### Available in the MVP
-
-- Premium responsive React/Vite experience for ADMIN and EMPLOYEE profiles.
-- JWT login, short-lived access tokens, rotating opaque refresh tokens, logout, and Argon2 passwords.
-- Company-scoped users, trainings, assignments, progress, quizzes, and attempts.
-- ARTICLE, VIDEO, and PDF training formats with draft/published workflow.
-- Authorized PDF upload/download with MIME, signature, and size validation.
-- Provider-neutral local/S3-compatible PDF storage with private tenant-scoped object keys.
-- Immutable PDF versions with checksums, page extraction, observable processing states, and ADMIN reprocessing.
-- Selective Tesseract OCR for pages without native text, with bounded work and per-page provenance.
-- Immutable employee acknowledgement evidence tied to the exact PDF version and SHA-256 checksum, plus an ADMIN history report.
-- Durable PostgreSQL document jobs with leased multi-worker claims, heartbeats, exponential retry, and dead-letter state.
-- Gemini cloud embeddings, 768-dimensional pgvector chunks, cosine retrieval, and HNSW indexing.
-- Employee questions over assigned PDFs with grounded answers and explicit document/page citations.
-- Employee home, catalog, player, assessment, correction, and result experiences.
-- Admin dashboard, training/quiz editor, assignment workflow, and employee management.
-- Ordered learning paths with required/optional steps, sequential availability, aggregate progress, publishing validation, and bulk assignment.
-- Automatic idempotent certificates with immutable identity snapshots, unique public verification codes, and authenticated ReportLab PDF downloads.
-- Tenant-scoped management analytics for completion, overdue work, learning hours, paths, and certificates.
-- UTF-8 CSV exports for assignment progress and certificate evidence, including spreadsheet-formula injection protection.
-- Gemini structured generation for reviewable training and quiz drafts.
-- Idempotent NovaTech demo seed with six local SVG training covers.
-- FastAPI application factory with versioned routes and OpenAPI documentation.
-- Stable error envelopes and correlation IDs returned as `X-Request-ID`.
-- Structured JSON logs without prompts, tokens, secrets, or document bodies.
-- Redis-backed rate limits for authentication and AI generation, with a memory adapter for local use.
-- Optional AWS Secrets Manager bootstrap with an explicit secret-key allowlist.
-- Liveness and dependency-aware readiness endpoints.
-- SQLAlchemy 2.x asynchronous infrastructure and Alembic-only schema evolution.
-- PostgreSQL 17 with pgvector and health-gated container startup.
-- Multi-stage, health-checked Docker images and separate API/worker runtime services.
-- Backend/frontend quality gates and Playwright browser journeys against Docker in GitHub Actions.
-
-### Intentionally deferred
-
-- Notifications and general audit history.
-- Departments, positions, manager role, SSO, billing, and enterprise integrations.
+- Responsive dark-mode experiences for `ADMIN` and `EMPLOYEE` profiles.
+- Secure JWT authentication with rotating refresh tokens and Argon2 password hashing.
+- Company-scoped users, trainings, assignments, progress, quizzes, attempts, and authorization.
+- Article, video, and PDF training formats with draft and published states.
+- Training creation, editing, assignment, search, progress, and server-corrected assessments.
+- Ordered learning paths with required steps, sequential availability, and aggregate progress.
+- Automatic certificates with immutable identity snapshots and public verification codes.
+- Professional PDF certificate downloads generated with ReportLab.
+- Management dashboards, analytics, overdue visibility, learning hours, and safe CSV exports.
+- Private PDF versions, authorized downloads, extraction, selective OCR, acknowledgements, and
+  document questions with page citations.
+- Durable PostgreSQL worker queue with leases, retries, heartbeats, and dead-letter handling.
+- Redis-backed staging rate limits, S3-compatible private object storage, and AWS Secrets Manager
+  bootstrap.
+- Idempotent, realistic NovaTech demo data for immediate product presentation.
 
 ## AI Features
 
-The AI layer is designed around cloud providers only. Gemini is primary and Groq is an optional fallback; provider and model selection are environment-driven. Domain workflows talk to `AIService`, never directly to a vendor SDK.
+- **Training generation:** Gemini creates a structured training draft from a topic, audience,
+  objectives, and expected duration.
+- **Quiz generation:** Gemini creates reviewable multiple-choice questions, explanations, correct
+  options, and a passing score for an existing training.
+- **Gemini integration:** the backend uses an injected REST transport and validates every generated
+  payload with Pydantic before it reaches the editor.
+- **Cloud AI architecture:** application workflows depend on `AIService`, not a vendor SDK. Gemini
+  is primary, Groq is an optional authoring fallback adapter, and local model execution is disabled.
+- **Human review:** AI output remains a draft and is never published automatically.
 
-The MVP includes:
+Tests use fake providers and do not consume Gemini quota. Live generation requires a locally
+configured `GEMINI_API_KEY` with provider availability and quota.
 
-- `AIProvider` contracts for text, structured output, and streaming;
-- provider registry, injected transport boundary, and a real Gemini REST transport;
-- explicit fallback state instead of silent provider switching;
-- Pydantic validation for persistable structured output;
-- a deliberately disabled Ollama adapter that enforces the no-local-model policy;
-- ADMIN-only `/api/v1/ai/generate-training` and `/api/v1/ai/generate-quiz` endpoints;
-- Pydantic/JSON Schema validation before generated content reaches the editor.
+## Tech Stack
 
-Tests inject fake providers and never spend a real Gemini request. `GEMINI_API_KEY` remains optional: PDF extraction finishes in `EXTRACTED` without it, while authoring and RAG return explicit configuration errors. When configured, `gemini-embedding-2` creates 768-dimensional document/query embeddings and the employee player exposes source-aware questions over the latest authorized `READY` version. Groq remains an architectural adapter/fallback seam for authoring, not a live embedding transport.
-
-PDF processing states are `UPLOADED`, `EXTRACTING`, `EXTRACTED`, `INDEXING`, `READY`, and `FAILED`. Upload creates the version and its durable PostgreSQL job atomically. Independent workers claim jobs with `FOR UPDATE SKIP LOCKED`, renew bounded leases, selectively invoke Tesseract only for pages without native text, retry transient storage/embedding failures with exponential backoff, and move permanent or exhausted failures to `DEAD_LETTER`. Processing remains idempotent and the ADMIN retry endpoint safely requeues completed or dead-lettered versions.
+| Area           | Technology                                                         |
+| -------------- | ------------------------------------------------------------------ |
+| Frontend       | React 19, Vite, TypeScript, React Router, TanStack Query           |
+| API            | FastAPI, Python 3.13, Pydantic                                     |
+| Persistence    | PostgreSQL 17, pgvector, SQLAlchemy 2, Alembic                     |
+| AI & documents | Gemini, PyMuPDF, Tesseract OCR, ReportLab                          |
+| Infrastructure | Docker Compose, Nginx, Redis, MinIO/S3, AWS Secrets Manager        |
+| Quality        | Pytest, Ruff, Vitest, ESLint, Prettier, Playwright, GitHub Actions |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Browser[React web client] -->|REST /api/v1| API[FastAPI application]
-    API --> Services[Application services]
-    API --> Queue[(PostgreSQL job queue)]
-    Worker[Document worker replicas] --> Queue
-    Worker --> RAG[RAG pipeline]
+    Browser[React + Vite] --> Nginx[Nginx]
+    Nginx --> API[FastAPI /api/v1]
+    API --> Services[Domain services]
     Services --> DB[(PostgreSQL + pgvector)]
-    Services --> Storage[Local or S3-compatible object storage]
-    API --> Redis[(Redis rate limits)]
+    Services --> Storage[Local or private S3 storage]
     Services --> AI[AIService]
-    AI --> Gemini[Gemini]
-    AI -. explicit fallback .-> Groq[Groq]
-    RAG --> DB
+    AI --> Gemini[Gemini Cloud AI]
+    AI -. optional fallback .-> Groq[Groq]
+    API --> Queue[(Durable document jobs)]
+    Worker[Worker replicas] --> Queue
+    Worker --> Storage
+    Worker --> DB
+    API --> Redis[(Redis rate limits)]
+    API -. staging bootstrap .-> Secrets[AWS Secrets Manager]
 ```
 
-Workflix begins as a modular monolith with a separately scalable document-worker process. This keeps domain transactions simple while isolating workload-heavy extraction and indexing from HTTP replicas. Read the [architecture guide](docs/architecture.md) and [ADRs](docs/adr) for the reasoning behind each choice.
+Workflix is a modular monolith with a separately scalable document worker. This keeps transactions
+simple while isolating extraction, OCR, and indexing from HTTP replicas. See
+[architecture.md](docs/architecture.md) and the [architecture decisions](docs/adr).
 
-## Tech Stack
+## Screenshots
 
-| Layer       | Technology                                                          |
-| ----------- | ------------------------------------------------------------------- |
-| Web         | React 19, Vite, TypeScript, React Router, TanStack Query            |
-| UI          | Tailwind CSS, Lucide React, Framer Motion                           |
-| Forms       | React Hook Form, Zod                                                |
-| API         | Python 3.13, FastAPI, Pydantic, PyMuPDF, Tesseract OCR, ReportLab    |
-| Persistence | SQLAlchemy 2.x, Alembic, psycopg                                    |
-| Data        | PostgreSQL 17, pgvector                                             |
-| Quality     | Ruff, pytest, ESLint, Prettier, Vitest, Testing Library, Playwright |
-| Delivery    | Docker Compose, Nginx, Redis, MinIO, GitHub Actions                 |
-
-## Product experience
-
-The production frontend includes personalized discovery, ordered employee paths, certificates, a learning player, quizzes, management analytics, CSV exports, content authoring, assignments, and people progress. Playwright continuously checks the employee, ADMIN, certificate, PDF, and 390×844 mobile journeys.
+| Employee experience                                       | Administration                                                 |
+| --------------------------------------------------------- | -------------------------------------------------------------- |
+| ![Workflix login](docs/screenshots/01-login.png)          | ![Admin dashboard](docs/screenshots/03-admin-dashboard.png)    |
+| ![Employee home](docs/screenshots/02-employee-home.png)   | ![AI training editor](docs/screenshots/04-ai-editor.png)       |
+| ![Quiz experience](docs/screenshots/05-quiz.png)          | ![Management analytics](docs/screenshots/07-analytics.png)     |
+| ![Learning paths](docs/screenshots/06-learning-paths.png) | ![Certificate experience](docs/screenshots/08-certificate.png) |
 
 ## Demo
 
-After startup (default port):
+After startup:
 
 - Web: [http://localhost:5173](http://localhost:5173)
-- API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- API documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
 - Liveness: [http://localhost:8000/health](http://localhost:8000/health)
 - Readiness: [http://localhost:8000/ready](http://localhost:8000/ready)
 
-NovaTech demo accounts use the same local-only password `Workflix@2026`:
+The local-only NovaTech demo accounts share the password `Workflix@2026`:
 
 | Profile       | Email                    |
 | ------------- | ------------------------ |
 | Administrator | `admin@workflix.demo`    |
 | Employee      | `employee@workflix.demo` |
 
-Five fictional employees, six published trainings, assignments, progress, and quizzes are seeded automatically when `DEMO_MODE=true`. The seed is idempotent.
+The idempotent seed includes five fictional employees, six published trainings, specific quizzes,
+realistic progress, two learning paths, a certificate, and populated analytics.
 
-## Getting Started
+## Running Locally
 
-### Prerequisites
-
-- Docker Desktop with Docker Compose
-- Optional local development: Node.js 22+ and Python 3.13+
-- Optional worker outside Docker: Tesseract 5 with `por` and `eng` language data
-
-### Run the complete stack
+Prerequisite: Docker Desktop with Docker Compose.
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-The backend waits for PostgreSQL, runs `alembic upgrade head`, applies the idempotent demo seed, and then starts FastAPI. The document worker starts after the backend is healthy and consumes durable jobs from PostgreSQL. The frontend waits for a healthy backend before starting Nginx.
+PowerShell:
 
-If port `5173` is already in use, choose another host port without editing Compose:
-
-```bash
-FRONTEND_PORT=5174 docker compose up --build
+```powershell
+Copy-Item .env.example .env
+docker compose up --build
 ```
 
-On PowerShell:
+The backend runs migrations, applies the demo seed, starts the API, and then allows the worker and
+frontend health-gated startup. If port `5173` is already used:
 
 ```powershell
 $env:FRONTEND_PORT = "5174"
 docker compose up --build
 ```
 
-### Run the frontend locally
+For host-based development, Node.js 22+ and Python 3.13+ are required. Environment details and the
+hardened staging overlay are documented in [docs/deployment.md](docs/deployment.md).
 
-```bash
-npm install
-npm run dev
-```
-
-Vite proxies `/api` requests to `http://localhost:8000`.
-
-### Run the hardened staging topology
-
-Copy `docker/staging.env.example` to the ignored `docker/staging.env`, replace every placeholder, and make the AWS secret available to the workload identity:
-
-```bash
-docker compose --env-file docker/staging.env \
-  -f docker-compose.yml \
-  -f docker-compose.staging.yml \
-  up --build -d
-```
-
-The overlay adds Redis, a private S3-compatible MinIO bucket, distributed request limits, and AWS Secrets Manager bootstrap. It defaults to `SECRETS_MANAGER_PROVIDER=aws`; use `env` only for an explicit portable smoke test. See [the deployment guide](docs/deployment.md) for the secret JSON contract and production notes.
-
-### Run the backend locally
-
-Create `./.env` from `.env.example`, change the database hostname from `postgres` to `localhost`, then:
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-alembic upgrade head
-uvicorn app.main:app --reload
-```
-
-On Windows, activate with `.venv\Scripts\Activate.ps1`.
-
-The Docker image already contains Tesseract and its Portuguese/English data. For a worker run directly on the host, install those language packs and point `TESSDATA_PREFIX` to the tessdata directory, or explicitly set `RAG_OCR_ENABLED=false` when OCR is not required.
-
-## Environment Variables
-
-`.env.example` is the complete development contract. Important groups include:
-
-- application: `APP_ENV`, `APP_VERSION`, `DEMO_MODE`, `LOG_LEVEL`;
-- data: `DATABASE_URL`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`;
-- authentication: `JWT_SECRET`, access lifetime, and refresh lifetime;
-- AI/RAG: primary/fallback provider, Gemini/Groq keys, generation and embedding models, embedding dimensions, page/OCR caps, OCR languages and DPI, retrieval limit, worker polling, leases, heartbeats, attempts, and retry backoff;
-- files: local/S3 provider, bucket, endpoint, credentials, path style, encryption, and upload limit;
-- request protection: Redis URL and limits for login, refresh, and AI generation;
-- managed secrets: provider, secret identifier, region, and optional endpoint;
-- web: CORS origins, API base URL, and optional frontend host port.
-
-Never commit `.env` or use the included local credentials outside a development machine.
-
-## Database
-
-The first migration enables `vector` and `pgcrypto`; the second owns the focused MVP schema; `20260821_0003` adds document intelligence; `20260821_0004` adds the durable processing queue; `20260822_0005` adds OCR provenance and PDF acknowledgements; and `20260822_0006` adds paths and certificates. Production startup never calls `create_all()`.
-
-The initial relational model, ownership rules, and relationship diagram live in [docs/database.md](docs/database.md).
-
-Useful migration commands:
-
-```bash
-cd backend
-alembic current
-alembic upgrade head
-alembic history
-```
-
-## API Documentation
-
-FastAPI publishes interactive Swagger UI at `/docs`, ReDoc at `/redoc`, and the OpenAPI document at `/openapi.json`.
-
-Operational endpoints are stable at the root; product endpoints are versioned under `/api/v1`. Errors use this envelope:
-
-```json
-{
-  "error": {
-    "code": "CONTENT_NOT_FOUND",
-    "message": "Content not found",
-    "request_id": "correlation-id"
-  }
-}
-```
-
-## Testing
+## Tests
 
 Backend:
 
@@ -274,119 +172,56 @@ npm run test
 npm run build
 ```
 
-Browser journeys (requires the Docker stack):
+End to end, with the Docker stack running:
 
 ```bash
-npx playwright install chromium
 npm run test:e2e
 ```
 
-The backend suite covers auth, RBAC, tenant isolation, paths, certificate idempotency/PDFs, analytics/exports, progress, OCR, acknowledgement evidence, PDF versioning, RAG, quizzes, AI mocks, infrastructure hardening, and seed idempotency. Playwright executes login, learning, path/certificate, quiz/result, PDF processing, ADMIN/reporting, and mobile-overflow flows against Docker/PostgreSQL in CI.
+GitHub Actions enforces backend, frontend, Compose, migration-owned startup, and Playwright browser
+journeys on every pull request and push to `main`.
 
 ## Security
 
-- Configuration is validated at startup; required secrets cannot be omitted silently.
-- CORS is an explicit allowlist.
-- Request IDs are sanitized before reuse.
-- Production error bodies never include Python tracebacks.
-- Logs exclude secrets and private content by design.
-- Tenant context comes from the verified principal, never from a client-selected `company_id`.
-- Semantic retrieval contracts require both company and user context before ranking.
-- AI-generated business content is reviewable and never auto-published.
-- Authentication and AI abuse controls use atomic Redis windows in staging.
-- Staging secrets are loaded from an allowlisted AWS Secrets Manager JSON payload.
-- PDFs use private, tenant-prefixed S3-compatible objects and are returned only after authorization.
-- Vector retrieval derives company and principal from the verified user, applies assignment/publish filters before ranking, and only searches the latest `READY` document version.
-- Document text is explicitly treated as untrusted evidence; commands found inside a PDF never become system instructions.
-- Acknowledgements snapshot the employee identity, attestation, filename, version, checksum, and timestamp; trainings with evidence cannot be deleted.
+- Tenant identity comes from the verified principal, never a client-provided company identifier.
+- AI prompts, tokens, document bodies, and secrets are excluded from structured application logs.
+- `.env` files are ignored; committed examples contain placeholders only.
+- PDFs use private tenant-prefixed object keys and authorization-gated downloads.
+- Staging supports Redis request limits, private S3-compatible storage, and an allowlisted AWS
+  Secrets Manager payload.
+- AI-generated content requires administrator review before persistence and publication.
 
-See [docs/security.md](docs/security.md) for the complete baseline and planned controls.
+See [docs/security.md](docs/security.md) for the complete baseline.
 
 ## Project Structure
 
 ```text
 workflix/
 ├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   ├── components/
-│   │   ├── features/
-│   │   ├── hooks/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   ├── types/
-│   │   └── utils/
-│   ├── Dockerfile
-│   └── nginx.conf
+│   └── src/{app,components,features,hooks,pages,services,types,utils}
 ├── backend/
-│   ├── app/
-│   │   ├── ai/
-│   │   │   ├── providers/
-│   │   │   │   ├── gemini.py
-│   │   │   │   ├── groq.py
-│   │   │   │   └── ollama.py
-│   │   │   ├── base.py
-│   │   │   ├── registry.py
-│   │   │   └── service.py
-│   │   ├── api/
-│   │   ├── core/
-│   │   ├── db/
-│   │   ├── models/
-│   │   ├── rag/
-│   │   │   ├── chunker.py
-│   │   │   ├── document_processor.py
-│   │   │   ├── embeddings.py
-│   │   │   ├── extractor.py
-│   │   │   ├── jobs.py
-│   │   │   ├── queue.py
-│   │   │   ├── providers/gemini.py
-│   │   │   └── retriever.py
-│   │   ├── worker.py
-│   │   ├── repositories/
-│   │   ├── schemas/
-│   │   ├── storage/
-│   │   └── services/
+│   ├── app/{ai,api,core,db,models,rag,repositories,schemas,services,storage}
 │   ├── migrations/
-│   ├── tests/
-│   └── Dockerfile
+│   └── tests/
 ├── tests/e2e/
 ├── docker/
 ├── docs/
-│   └── adr/
 ├── .github/workflows/
 ├── docker-compose.yml
 ├── docker-compose.staging.yml
-├── playwright.config.ts
 ├── PROJECT_STATUS.md
 └── README.md
 ```
 
 ## Roadmap
 
-### Focused MVP — complete
+The portfolio release is feature-complete. Future product directions, intentionally outside this
+release, are limited to:
 
-- Authentication, companies, users, refresh-token rotation, RBAC, and tenant isolation.
-- Content catalog, publishing, assignment, progress, and employee discovery.
-- Backend-corrected quizzes and basic dashboards.
-- Cloud Gemini training/quiz generation with human review and validated structured output.
-
-### Document intelligence V1 — complete
-
-- Immutable PDF versions, page extraction, embeddings, pgvector retrieval, and cited answers.
-
-### Document intelligence V2 — complete
-
-- Selective OCR, extraction provenance, version-specific acknowledgement evidence, and ADMIN acknowledgement reporting.
-
-### Learning management V2+ — complete
-
-- Ordered paths, sequential employee progress, verifiable PDF certificates, management analytics, and CSV exports.
-
-### V3
-
-- Enterprise integrations, audit history, advanced notifications, billing, mobile refinements, and deployment options.
-
-Progress, decisions, known issues, and the next concrete phase are kept current in [PROJECT_STATUS.md](PROJECT_STATUS.md).
+- enterprise SSO and directory synchronization;
+- advanced notification and assignment automation;
+- department/position governance and a dedicated manager profile;
+- expanded audit reporting and production deployment options.
 
 ## License
 

@@ -694,6 +694,15 @@ select:focus {
   outline: 3px solid rgba(103, 228, 235, 0.07);
 }
 
+input:disabled,
+textarea:disabled,
+select:disabled {
+  cursor: not-allowed;
+  color: #737d8f;
+  background: rgba(255, 255, 255, 0.018);
+  opacity: 0.72;
+}
+
 label {
   display: grid;
   gap: 7px;
@@ -1458,14 +1467,45 @@ label {
 }
 
 .empty-hero {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  align-content: center;
   padding: 50px;
   border: 1px dashed var(--wf-line);
   border-radius: 15px;
+  background: radial-gradient(circle at 50% 0%, rgba(139, 114, 255, 0.08), transparent 45%);
   text-align: center;
 }
 
+.empty-hero > svg,
+.state-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 18px;
+  padding: 11px;
+  border: 1px solid rgba(139, 114, 255, 0.22);
+  border-radius: 12px;
+  color: #aa9cf4;
+  background: rgba(139, 114, 255, 0.08);
+}
+
+.empty-hero h2 {
+  max-width: 520px;
+  font-size: 1.2rem;
+}
+
 .empty-hero p {
+  max-width: 520px;
+  margin: 10px 0 0;
   color: var(--wf-muted);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+.compact-empty {
+  min-height: 300px;
 }
 
 .page-state {
@@ -1481,8 +1521,77 @@ label {
   font-size: 0.78rem;
 }
 
+.loading-state {
+  display: block;
+  min-height: 55vh;
+  padding-top: 4px;
+}
+
+.skeleton-shell {
+  width: 100%;
+}
+
+.skeleton-line,
+.skeleton-grid > span {
+  display: block;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.035);
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.035) 15%,
+    rgba(255, 255, 255, 0.075) 35%,
+    rgba(255, 255, 255, 0.035) 55%
+  );
+  background-size: 240% 100%;
+  animation: skeleton-shimmer 1.45s ease-in-out infinite;
+}
+
+.skeleton-kicker {
+  width: 150px;
+  height: 10px;
+  margin-bottom: 18px;
+  border-radius: 99px;
+}
+
+.skeleton-title {
+  width: min(520px, 74%);
+  height: 46px;
+  border-radius: 11px;
+}
+
+.skeleton-copy {
+  width: min(390px, 62%);
+  height: 13px;
+  margin-top: 16px;
+  border-radius: 99px;
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 42px;
+}
+
+.skeleton-grid > span {
+  min-height: 250px;
+  border-radius: 15px;
+}
+
+.loading-label {
+  color: #737d8e;
+  text-align: center;
+}
+
 .error-state strong {
-  margin-top: 12px;
+  margin-top: 2px;
+  color: #e5e8ed;
+}
+
+.error-state .state-icon {
+  color: #ef9aa3;
+  border-color: rgba(240, 104, 116, 0.24);
+  background: rgba(240, 104, 116, 0.07);
 }
 
 .spin {
@@ -1493,6 +1602,12 @@ label {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  to {
+    background-position-x: -140%;
   }
 }
 
@@ -1578,6 +1693,17 @@ label {
 .video-player a {
   color: #b8c0ce;
   font-size: 0.76rem;
+}
+
+.video-player h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.video-player p {
+  margin: 0;
+  color: var(--wf-muted);
+  font-size: 0.74rem;
 }
 
 .pdf-player p {
@@ -1667,6 +1793,16 @@ label {
   background: transparent;
   cursor: pointer;
   font-size: 0.64rem;
+}
+
+.text-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.sidebar-feedback {
+  margin-top: 14px;
+  line-height: 1.45;
 }
 
 .quiz-page {
@@ -2062,6 +2198,11 @@ label {
   cursor: pointer;
 }
 
+.delete-training:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
 .people-summary {
   display: flex;
   gap: 12px;
@@ -2243,6 +2384,13 @@ label {
 }
 .editor-form-grid .full {
   grid-column: 1 / -1;
+}
+
+.form-note {
+  margin: 18px 0 0;
+  color: #737e90;
+  font-size: 0.64rem;
+  line-height: 1.55;
 }
 .content-editor {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -3060,6 +3208,11 @@ label {
   margin-top: 15px;
 }
 
+.report-split > *,
+.report-section {
+  min-width: 0;
+}
+
 @media (max-width: 1200px) {
   .training-grid.wide,
   .admin-training-grid {
@@ -3196,6 +3349,12 @@ label {
   .admin-training-grid,
   .metric-grid {
     grid-template-columns: 1fr;
+  }
+  .skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+  .skeleton-grid > span:not(:first-child) {
+    display: none;
   }
   .featured-training {
     min-height: 0;

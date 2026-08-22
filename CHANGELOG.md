@@ -4,6 +4,10 @@ All notable development changes are recorded here. This project follows the spir
 
 ## [Unreleased]
 
+No unreleased product changes. The portfolio scope is closed.
+
+## [0.1.0] - 2026-08-22
+
 ### Added
 
 - Focused Workflix MVP for ADMIN and EMPLOYEE roles.
@@ -27,6 +31,9 @@ All notable development changes are recorded here. This project follows the spir
 - Employee document questions with grounded Gemini answers, page/version sources, and prompt-injection isolation.
 - Durable PostgreSQL document jobs, independent worker containers, leased claims, heartbeats, exponential retry, dead-letter handling, and atomic upload enqueue.
 - Gemini generation default updated to `gemini-3.6-flash`, with test configuration explicitly blocking real provider credentials.
+- Hybrid OCR, immutable PDF acknowledgements, ordered learning paths, verifiable certificates, management analytics, and safe CSV exports.
+- Portfolio-ready responsive polish, realistic role-specific demo data, loading skeletons, action feedback, and screenshot assets.
+- Automated ADMIN AI authoring → publish → assignment → EMPLOYEE quiz/completion → ADMIN analytics demonstration flow.
 
 - Product, architecture, database, security, and deployment documentation.
 - Architecture decision records for the frontend, backend, AI, multi-tenancy, and RAG foundations.
