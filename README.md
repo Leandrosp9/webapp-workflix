@@ -43,8 +43,8 @@ durable document processing, and human-reviewed cloud AI authoring.
 - Private PDF versions, authorized downloads, extraction, selective OCR, acknowledgements, and
   document questions with page citations.
 - Durable PostgreSQL worker queue with leases, retries, heartbeats, and dead-letter handling.
-- Redis-backed staging rate limits, S3-compatible private object storage, and AWS Secrets Manager
-  bootstrap.
+- Redis-backed rate limits, S3-compatible private object storage, and deployment-scoped secrets,
+  with optional AWS Secrets Manager bootstrap support.
 - Idempotent, realistic NovaTech demo data for immediate product presentation.
 
 ## AI Features
@@ -59,8 +59,9 @@ durable document processing, and human-reviewed cloud AI authoring.
   is primary, Groq is an optional authoring fallback adapter, and local model execution is disabled.
 - **Human review:** AI output remains a draft and is never published automatically.
 
-Tests use fake providers and do not consume Gemini quota. Live generation requires a locally
-configured `GEMINI_API_KEY` with provider availability and quota.
+Tests use fake providers and do not consume Gemini quota. The portfolio deployment injects Gemini
+through the hosting platform's secret group; local generation requires a private
+`GEMINI_API_KEY` with provider availability and quota.
 
 ## Tech Stack
 
@@ -70,27 +71,28 @@ configured `GEMINI_API_KEY` with provider availability and quota.
 | API            | FastAPI, Python 3.13, Pydantic                                     |
 | Persistence    | PostgreSQL 17, pgvector, SQLAlchemy 2, Alembic                     |
 | AI & documents | Gemini, PyMuPDF, Tesseract OCR, ReportLab                          |
-| Infrastructure | Docker Compose, Nginx, Redis, MinIO/S3, AWS Secrets Manager        |
+| Infrastructure | Docker, Cloudflare Pages, Northflank, Neon, Redis, Backblaze B2/S3 |
 | Quality        | Pytest, Ruff, Vitest, ESLint, Prettier, Playwright, GitHub Actions |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Browser[React + Vite] --> Nginx[Nginx]
-    Nginx --> API[FastAPI /api/v1]
+    Browser[Browser] --> Pages[React + Vite on Cloudflare Pages]
+    Pages --> API[FastAPI on Northflank]
     API --> Services[Domain services]
-    Services --> DB[(PostgreSQL + pgvector)]
-    Services --> Storage[Local or private S3 storage]
+    Services --> DB[(Neon PostgreSQL + pgvector)]
+    Services --> Storage[Backblaze B2 private S3 storage]
     Services --> AI[AIService]
     AI --> Gemini[Gemini Cloud AI]
     AI -. optional fallback .-> Groq[Groq]
     API --> Queue[(Durable document jobs)]
-    Worker[Worker replicas] --> Queue
+    Worker[Northflank worker] --> Queue
     Worker --> Storage
     Worker --> DB
-    API --> Redis[(Redis rate limits)]
-    API -. staging bootstrap .-> Secrets[AWS Secrets Manager]
+    API --> Redis[(Managed Redis rate limits)]
+    Secrets[Northflank secret group] -. injects .-> API
+    Secrets -. injects .-> Worker
 ```
 
 Workflix is a modular monolith with a separately scalable document worker. This keeps transactions
@@ -108,14 +110,14 @@ simple while isolating extraction, OCR, and indexing from HTTP replicas. See
 
 ## Demo
 
-After startup:
+The public portfolio environment is available at:
 
-- Web: [http://localhost:5173](http://localhost:5173)
-- API documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
-- Liveness: [http://localhost:8000/health](http://localhost:8000/health)
-- Readiness: [http://localhost:8000/ready](http://localhost:8000/ready)
+- Web application: [workflix.pages.dev](https://workflix.pages.dev)
+- API documentation: [FastAPI Swagger UI](https://p01--backend--5ljdt6tvrrkz.code.run/docs)
+- Liveness: [backend health](https://p01--backend--5ljdt6tvrrkz.code.run/health)
+- Readiness: [backend readiness](https://p01--backend--5ljdt6tvrrkz.code.run/ready)
 
-The local-only NovaTech demo accounts share the password `Workflix@2026`:
+The fictional NovaTech demo accounts share the password `Workflix@2026`:
 
 | Profile       | Email                    |
 | ------------- | ------------------------ |
@@ -123,7 +125,8 @@ The local-only NovaTech demo accounts share the password `Workflix@2026`:
 | Employee      | `employee@workflix.demo` |
 
 The idempotent seed includes five fictional employees, six published trainings, specific quizzes,
-realistic progress, two learning paths, a certificate, and populated analytics.
+realistic progress, two learning paths, a certificate, and populated analytics. These credentials
+exist only for the public portfolio demonstration and must never be reused elsewhere.
 
 ## Running Locally
 
@@ -178,6 +181,14 @@ End to end, with the Docker stack running:
 npm run test:e2e
 ```
 
+Against the public portfolio environment:
+
+```powershell
+$env:PLAYWRIGHT_BASE_URL = "https://workflix.pages.dev"
+$env:PLAYWRIGHT_API_BASE_URL = "https://p01--backend--5ljdt6tvrrkz.code.run/api/v1"
+npm run test:e2e
+```
+
 GitHub Actions enforces backend, frontend, Compose, migration-owned startup, and Playwright browser
 journeys on every pull request and push to `main`.
 
@@ -187,8 +198,8 @@ journeys on every pull request and push to `main`.
 - AI prompts, tokens, document bodies, and secrets are excluded from structured application logs.
 - `.env` files are ignored; committed examples contain placeholders only.
 - PDFs use private tenant-prefixed object keys and authorization-gated downloads.
-- Staging supports Redis request limits, private S3-compatible storage, and an allowlisted AWS
-  Secrets Manager payload.
+- The portfolio environment uses Redis request limits, private Backblaze B2 storage, and a
+  Northflank secret group; an allowlisted AWS Secrets Manager bootstrap remains supported.
 - AI-generated content requires administrator review before persistence and publication.
 
 See [docs/security.md](docs/security.md) for the complete baseline.

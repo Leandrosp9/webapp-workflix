@@ -1,6 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
 
 const demoPassword = "Workflix@2026";
+const apiBaseUrl = process.env.PLAYWRIGHT_API_BASE_URL ?? "/api/v1";
+
+function apiUrl(path: string) {
+  return `${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
 
 async function login(page: Page, email: string) {
   await page.goto("/login");
@@ -9,6 +14,7 @@ async function login(page: Page, email: string) {
   await page.getByRole("button", { name: "Entrar na Workflix" }).click();
   await expect(page).toHaveURL(
     email.startsWith("admin@") ? /\/admin$/ : /\/app$/,
+    { timeout: 15_000 },
   );
 }
 
@@ -262,7 +268,7 @@ test("fluxo demo cria conteúdo com IA, publica, atribui e confirma conclusão",
   } finally {
     if (trainingId) {
       const removed = await page.request.delete(
-        `/api/v1/trainings/${trainingId}`,
+        apiUrl(`/trainings/${trainingId}`),
         {
           headers: adminHeaders,
         },
@@ -303,7 +309,7 @@ test("administrador versiona PDF e acompanha a extração", async ({ page }) => 
   );
   expect(token).toBeTruthy();
   const headers = { Authorization: `Bearer ${token}` };
-  const created = await page.request.post("/api/v1/trainings", {
+  const created = await page.request.post(apiUrl("/trainings"), {
     headers,
     data: {
       title: "Playwright PDF temporário",
@@ -333,7 +339,7 @@ test("administrador versiona PDF e acompanha a extração", async ({ page }) => 
       .poll(
         async () => {
           const response = await page.request.get(
-            `/api/v1/trainings/${training.id}/document`,
+            apiUrl(`/trainings/${training.id}/document`),
             { headers },
           );
           documentStatus = (await response.json()).status as string;
@@ -352,7 +358,7 @@ test("administrador versiona PDF e acompanha a extração", async ({ page }) => 
       .poll(
         async () => {
           const response = await page.request.get(
-            `/api/v1/trainings/${training.id}/document`,
+            apiUrl(`/trainings/${training.id}/document`),
             { headers },
           );
           documentVersion = await response.json();
@@ -376,7 +382,7 @@ test("administrador versiona PDF e acompanha a extração", async ({ page }) => 
     ).toBeVisible();
   } finally {
     const removed = await page.request.delete(
-      `/api/v1/trainings/${training.id}`,
+      apiUrl(`/trainings/${training.id}`),
       { headers },
     );
     expect(removed.status()).toBe(204);

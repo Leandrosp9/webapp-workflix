@@ -1,50 +1,80 @@
 # Workflix Project Status
 
-Last updated: 2026-08-22
+Last updated: 2026-08-24
 
 ## Release status
 
 `PORTFOLIO RELEASE READY`
 
-The functional scope is closed. Workflix is validated as a polished SaaS portfolio project for GitHub, LinkedIn, recruiter reviews, and freelancer demonstrations.
+The functional scope is closed. Workflix is published and validated as a polished SaaS portfolio
+project for GitHub, LinkedIn, recruiter reviews, and freelancer demonstrations.
 
 ## Completed product scope
 
-- Responsive ADMIN and EMPLOYEE experiences with a premium dark interface.
-- Authentication, role-based access control, tenant isolation, refresh tokens, and Argon2 password hashing.
-- Employee home, training catalog, content player, progress tracking, quizzes, results, learning paths, and certificates.
-- ADMIN dashboard, training authoring, assignment management, learning paths, analytics, and CSV/PDF exports.
-- Gemini-assisted training and quiz generation behind a provider interface, with human review before persistence.
-- ARTICLE, VIDEO, and versioned PDF content workflows, durable document workers, object storage abstraction, extraction, semantic retrieval, and grounded answers.
-- Automatic certificate issuance with immutable snapshots, public verification codes, and professional PDF download.
-- Realistic NovaTech demo data for five employees, six trainings, progress, quizzes, paths, certificates, and analytics.
-- Docker Compose development stack and a hardened staging overlay with Redis rate limiting, private S3-compatible storage, and secrets-manager bootstrap.
+- Responsive ADMIN and EMPLOYEE experiences with a premium dark interface and Workflix branding.
+- Authentication, role-based access control, tenant isolation, rotating refresh tokens, and Argon2
+  password hashing.
+- Employee home, catalog, player, progress, quizzes, learning paths, and verifiable certificates.
+- ADMIN dashboard, training authoring, assignments, learning paths, analytics, and CSV/PDF exports.
+- Gemini-assisted training and quiz generation behind a provider interface, with human review
+  before persistence.
+- ARTICLE, VIDEO, and versioned PDF workflows with a durable worker, private object storage,
+  extraction, semantic retrieval, and grounded answers.
+- Realistic NovaTech demo data for employees, trainings, progress, quizzes, paths, certificates,
+  and analytics.
+- Docker Compose development stack plus a published cloud portfolio environment.
 - CI quality gates for backend, frontend, Playwright, formatting, and production build.
+
+## Published environment
+
+| Component             | Provider                | Status                                                         |
+| --------------------- | ----------------------- | -------------------------------------------------------------- |
+| Web application       | Cloudflare Pages        | [workflix.pages.dev](https://workflix.pages.dev)               |
+| API                   | Northflank              | [Swagger UI](https://p01--backend--5ljdt6tvrrkz.code.run/docs) |
+| Backend service       | Northflank              | Running with liveness and readiness checks                     |
+| Document worker       | Northflank              | Running as a separate private worker                           |
+| PostgreSQL + pgvector | Neon                    | Connected and ready                                            |
+| Rate limiting         | Managed Redis           | Connected                                                      |
+| PDF object storage    | Backblaze B2            | Private bucket with default encryption                         |
+| AI authoring          | Google Gemini           | Configured through a protected secret                          |
+| Runtime secrets       | Northflank secret group | Injected into backend and worker                               |
+
+The backend health endpoints are
+[health](https://p01--backend--5ljdt6tvrrkz.code.run/health) and
+[readiness](https://p01--backend--5ljdt6tvrrkz.code.run/ready).
 
 ## Final validation
 
-Validated on 2026-08-22:
+Validated on 2026-08-24:
 
 - Backend: 44 Pytest tests passed.
 - Python quality: Ruff lint and format checks passed across 104 files.
-- Frontend: 1 Vitest test passed; ESLint and Prettier passed.
-- Production build: Vite build passed (1,746 modules transformed).
-- E2E: 7 Playwright journeys passed, including the complete ADMIN-to-EMPLOYEE demonstration and the responsive viewport matrix.
-- Docker: frontend, backend, document worker, and PostgreSQL containers are healthy.
-- API: `/health` reports `healthy`; `/ready` reports `ready` with the database available.
-- Database: Alembic migration `20260822_0006` is at head; PostgreSQL extensions `vector` and `pgcrypto` are installed.
-- Certificate: a landscape PDF was generated, rendered, and visually verified for content, typography, margins, accents, and page fit.
-- Security: no real secret, API key, password, token, or local `.env` file is tracked in the current tree or detected in Git history.
+- Frontend: 1 Vitest test passed; ESLint and Prettier checks passed.
+- Production build: Vite passed with 1,746 modules transformed.
+- Public E2E: 7 Playwright journeys passed against the Cloudflare and Northflank deployment.
+- Public PDF flow: upload, Backblaze B2 persistence, durable-worker extraction, status polling, and
+  cleanup passed.
+- Gemini: a real training draft was generated successfully with `gemini-3.6-flash`.
+- API: `/health` and `/ready` returned HTTP 200; direct SPA routes returned HTTP 200.
+- Worker: the running replica logged `document_worker_started`.
+- Database: migration-owned startup completed against Neon; local Alembic head remains
+  `20260822_0006`.
+- Local Docker: Docker Desktop was not running during this cloud-release check; the previously
+  validated Compose workflow remains covered by the repository and CI configuration.
 
 ## Demonstration flow
 
 The validated journey is:
 
-1. ADMIN signs in, opens the dashboard, creates a training, generates training and quiz drafts with the AI workflow, publishes, and assigns it.
-2. EMPLOYEE signs in, opens the assigned training, progresses through the content, passes the quiz, completes the training, and views the certificate.
+1. ADMIN signs in, opens the dashboard, creates a training, generates training and quiz drafts,
+   publishes, and assigns it.
+2. EMPLOYEE signs in, opens the assigned training, progresses through the content, passes the quiz,
+   completes the training, and views the certificate.
 3. ADMIN returns to Analytics and confirms the employee completion.
 
-The Playwright suite mocks only the external Gemini boundary, so it validates the full product journey without consuming provider quota.
+Playwright mocks the external Gemini response only in the deterministic end-to-end authoring
+journey. A separate live smoke test confirmed the deployed Gemini integration without persisting
+its generated draft.
 
 ## Run locally
 
@@ -60,25 +90,27 @@ Open:
 - Liveness: `http://localhost:8000/health`
 - Readiness: `http://localhost:8000/ready`
 
-If port `5173` is occupied, set `FRONTEND_PORT=5174` before starting Compose.
-
 ## Demo credentials
 
-| Role          | Email                   | Password       |
-| ------------- | ----------------------- | -------------- |
-| Administrator | `admin@novatech.com`    | `Admin@123`    |
-| Employee      | `employee@novatech.com` | `Employee@123` |
+| Role          | Email                    | Password        |
+| ------------- | ------------------------ | --------------- |
+| Administrator | `admin@workflix.demo`    | `Workflix@2026` |
+| Employee      | `employee@workflix.demo` | `Workflix@2026` |
 
-These credentials belong only to the deterministic local demo dataset and must not be reused in a real deployment.
+These credentials belong only to the fictional portfolio dataset and must not be reused elsewhere.
 
 ## Real limitations
 
-- Live Gemini authoring and semantic indexing require a valid API key, model availability, and provider quota; automated tests use a mock provider and consume no credit.
-- Demo video trainings provide professional supporting content but do not bundle licensed video media.
-- The seeded PDF training includes article fallback content; an ADMIN must upload a source PDF to demonstrate binary extraction.
-- Local file storage, the in-memory rate limiter, and the development JWT default are local-only choices; the staging overlay supplies the production-oriented alternatives.
-- A production domain, cloud account, backup policy, monitoring destination, and deployment target are intentionally environment-specific and are not included in the repository.
-- Port `5173` was already occupied on the validation machine, so the final running stack uses the supported `FRONTEND_PORT=5174` override.
+- The public environment uses entry-level hosting resources, so authentication and cold operations
+  can take several seconds.
+- Gemini and embeddings depend on provider availability and free-tier quota.
+- Demo video trainings provide supporting content but do not bundle licensed video media.
+- The seeded PDF training uses article fallback content; upload a source PDF to demonstrate binary
+  extraction.
+- A custom domain, production backup policy, external alert destination, and formal uptime SLA are
+  outside this portfolio release.
+- The public demo credentials are intentionally shared; the environment must not contain real
+  company or personal data.
 
 ## Future roadmap
 
