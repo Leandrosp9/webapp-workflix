@@ -28,4 +28,4 @@ USER workflix
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "if [ \"${WORKFLIX_PROCESS:-api}\" = \"worker\" ]; then exec python -m app.worker; else alembic upgrade head && python -m app.seed && exec uvicorn app.main:app --host 0.0.0.0 --port 8000; fi"]
