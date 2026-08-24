@@ -4,11 +4,10 @@ interface BrandProps {
 
 export function Brand({ compact = false }: BrandProps) {
   return (
-    <div className="brand" aria-label="Workflix">
-      <span className="brand-mark" aria-hidden="true">
-        W
+    <div className={`brand ${compact ? "brand-compact" : ""}`} aria-label="Workflix">
+      <span className="brand-logo" aria-hidden="true">
+        <img src="/brand/workflix-logo.png" alt="" />
       </span>
-      {!compact && <span className="brand-name">Workflix</span>}
     </div>
   );
 }

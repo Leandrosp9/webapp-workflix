@@ -2,6 +2,7 @@ import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 
 import { AppShell } from "../components/AppShell";
+import { Brand } from "../components/Brand";
 import { useAuth } from "../features/auth/AuthProvider";
 import type { Role } from "../types/api";
 import { AppProviders } from "./providers";
@@ -24,9 +25,7 @@ const AdminReportsPage = lazy(() => import("../pages/admin/AdminReportsPage"));
 function RouteFallback() {
   return (
     <main className="route-fallback" aria-busy="true" aria-label="Carregando Workflix">
-      <div className="brand-mark" aria-hidden="true">
-        W
-      </div>
+      <Brand compact />
       <span>Preparando seu espaço…</span>
     </main>
   );

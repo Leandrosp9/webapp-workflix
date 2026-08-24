@@ -104,27 +104,38 @@ footer {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 11px;
+  flex: 0 0 auto;
 }
 
-.brand-mark {
-  display: inline-grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-  color: #0d1220;
-  background: linear-gradient(135deg, var(--cyan), #8b78ff 76%);
-  box-shadow: 0 8px 28px rgba(110, 231, 249, 0.13);
-  font-size: 0.82rem;
-  font-weight: 900;
+.brand-logo {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 166px;
+  height: 80px;
+  filter: drop-shadow(0 10px 28px rgba(69, 93, 255, 0.2));
 }
 
-.brand-name {
-  font-size: 1rem;
-  font-weight: 750;
-  letter-spacing: -0.025em;
+.brand-logo img {
+  position: absolute;
+  top: -38px;
+  left: -1px;
+  width: 168px;
+  max-width: none;
+  height: 168px;
+  object-fit: contain;
+}
+
+.brand-compact .brand-logo {
+  width: 42px;
+  height: 40px;
+}
+
+.brand-compact .brand-logo img {
+  top: -20px;
+  left: -27px;
+  width: 96px;
+  height: 96px;
 }
 
 .phase-badge,
