@@ -38,6 +38,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const navigation = user?.role === "ADMIN" ? adminNavigation : employeeNavigation;
   const active = navigation.find((item) =>
     item.to === "/app" || item.to === "/admin"
@@ -86,17 +87,32 @@ export function AppShell({ children }: PropsWithChildren) {
           ))}
         </nav>
         <div className="sidebar-spacer" />
-        <div className="sidebar-user">
-          <div className="avatar">{user?.full_name.slice(0, 1).toUpperCase()}</div>
-          <div>
-            <strong>{user?.full_name}</strong>
-            <span>{user?.role === "ADMIN" ? "Administrador" : "Colaborador"}</span>
-          </div>
-          <ChevronDown size={15} />
+        <div className={`sidebar-profile ${profileOpen ? "open" : ""}`}>
+          <button
+            className="sidebar-user"
+            type="button"
+            aria-expanded={profileOpen}
+            aria-controls="sidebar-account-menu"
+            aria-label={`${profileOpen ? "Fechar" : "Abrir"} menu da conta de ${user?.full_name}`}
+            onClick={() => setProfileOpen((current) => !current)}
+          >
+            <span className="avatar">{user?.full_name.slice(0, 1).toUpperCase()}</span>
+            <span className="sidebar-user-copy">
+              <strong>{user?.full_name}</strong>
+              <span>{user?.role === "ADMIN" ? "Administrador" : "Colaborador"}</span>
+            </span>
+            <ChevronDown className="sidebar-user-chevron" size={15} />
+          </button>
+          {profileOpen && (
+            <div className="sidebar-account-menu" id="sidebar-account-menu">
+              <span>Conta conectada</span>
+              <strong>{user?.email}</strong>
+              <button type="button" onClick={() => void logout()}>
+                <LogOut size={16} /> Sair da conta
+              </button>
+            </div>
+          )}
         </div>
-        <button className="logout-button" type="button" onClick={() => void logout()}>
-          <LogOut size={16} /> Sair
-        </button>
       </aside>
       <div className="app-main">
         <header className="app-topbar">

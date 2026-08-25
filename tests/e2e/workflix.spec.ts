@@ -18,6 +18,11 @@ async function login(page: Page, email: string) {
   );
 }
 
+async function logout(page: Page) {
+  await page.getByRole("button", { name: /Abrir menu da conta de/ }).click();
+  await page.getByRole("button", { name: "Sair da conta" }).click();
+}
+
 async function expectNoHorizontalOverflow(page: Page) {
   const dimensions = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
@@ -100,6 +105,16 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
   ).toBeVisible();
   await expect(page.getByText("Treinamentos recentes")).toBeVisible();
 
+  const accountMenu = page.getByRole("button", {
+    name: "Abrir menu da conta de Marina Costa",
+  });
+  await expect(accountMenu).toHaveAttribute("aria-expanded", "false");
+  await accountMenu.click();
+  await expect(page.getByText("admin@workflix.demo")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Sair da conta" }),
+  ).toBeVisible();
+
   await page.getByRole("link", { name: "Treinamentos", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Treinamentos" }),
@@ -111,8 +126,63 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
   ).toBeVisible();
   await expect(page.getByText("employee@workflix.demo")).toBeVisible();
 
+  const validationEmail = "rafael.mendes@workflix.demo";
+  const validationEmployee = page
+    .locator(".people-table tbody tr")
+    .filter({ hasText: validationEmail });
+  if ((await validationEmployee.count()) === 0) {
+    await page.getByRole("button", { name: "Novo colaborador" }).click();
+    await page.getByLabel("Nome completo").fill("Rafael Mendes");
+    await page.getByLabel("E-mail corporativo").fill(validationEmail);
+    await page.getByRole("button", { name: "Criar acesso" }).click();
+    await expect(
+      page.getByText("Colaborador adicionado e acesso liberado."),
+    ).toBeVisible();
+  }
+
+  await validationEmployee.getByTitle("Editar colaborador").click();
+  await page.getByLabel("Nome completo").fill("Rafael Mendes da Silva");
+  await page.getByRole("button", { name: "Salvar alterações" }).click();
+  await expect(
+    page.getByText("Dados de Rafael Mendes da Silva atualizados."),
+  ).toBeVisible();
+
+  if (
+    await validationEmployee.getByText("Inativo", { exact: true }).isVisible()
+  ) {
+    await validationEmployee.getByTitle("Ativar acesso").click();
+    await page.getByRole("button", { name: "Confirmar ativação" }).click();
+    await expect(
+      validationEmployee.getByText("Ativo", { exact: true }),
+    ).toBeVisible();
+  }
+  await validationEmployee.getByTitle("Inativar acesso").click();
+  await page.getByRole("button", { name: "Confirmar inativação" }).click();
+  await expect(
+    validationEmployee.getByText("Inativo", { exact: true }),
+  ).toBeVisible();
+
   await page.getByRole("link", { name: "Trilhas", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Trilhas" })).toBeVisible();
+  const validationPath = "Integração e Segurança Operacional";
+  const pathAlreadyExists =
+    (await page
+      .locator(".path-list")
+      .getByText(validationPath, { exact: true })
+      .count()) > 0;
+  await page.getByRole("button", { name: "Nova trilha" }).click();
+  const pathName = page.getByLabel("Nome", { exact: true });
+  await expect(pathName).toBeFocused();
+  if (!pathAlreadyExists) {
+    await pathName.fill(validationPath);
+    await page
+      .getByLabel("Descrição")
+      .fill(
+        "Jornada de validação para integração segura de novos colaboradores.",
+      );
+    await page.getByRole("button", { name: "Criar rascunho" }).click();
+    await expect(page.getByText("Trilha criada como rascunho.")).toBeVisible();
+  }
 
   await page.getByRole("link", { name: "Relatórios", exact: true }).click();
   await expect(
@@ -233,7 +303,7 @@ test("fluxo demo cria conteúdo com IA, publica, atribui e confirma conclusão",
     await page.getByRole("button", { name: "Atribuir treinamento" }).click();
     await expect(page.getByText(/1 novas atribuições/)).toBeVisible();
 
-    await page.getByRole("button", { name: "Sair", exact: true }).click();
+    await logout(page);
     await login(page, "employee@workflix.demo");
     await page.goto(`/app/training/${trainingId}`);
     await expect(
@@ -258,7 +328,7 @@ test("fluxo demo cria conteúdo com IA, publica, atribui e confirma conclusão",
       page.getByRole("button", { name: "Baixar PDF" }).first(),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Sair", exact: true }).click();
+    await logout(page);
     await login(page, "admin@workflix.demo");
     await page.goto("/admin/reports");
     const trainingRow = page.getByRole("row").filter({
@@ -534,7 +604,7 @@ test("telas principais permanecem responsivas em desktop, notebook, tablet e mob
       await expect(page.locator("main.page-content")).toBeVisible();
       await expectNoHorizontalOverflow(page);
     }
-    const menu = page.getByRole("button", { name: "Abrir menu" });
+    const menu = page.getByRole("button", { name: "Abrir menu", exact: true });
     if (viewport.width <= 980) await expect(menu).toBeVisible();
     else await expect(menu).toBeHidden();
   }

@@ -1,6 +1,6 @@
 # Workflix
 
-![Workflix — Plataforma Corporativa de Aprendizagem e Conhecimento](docs/assets/workflix-banner.svg)
+![Workflix — Plataforma Corporativa de Aprendizagem e Conhecimento](docs/assets/workflix-banner.png)
 
 **Plataforma Corporativa de Aprendizagem e Conhecimento**
 

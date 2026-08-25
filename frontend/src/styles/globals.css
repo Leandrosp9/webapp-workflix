@@ -1019,12 +1019,33 @@ label {
   flex: 1;
 }
 
+.sidebar-profile {
+  position: relative;
+  border-top: 1px solid var(--wf-line);
+}
+
 .sidebar-user {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 10px;
   padding: 13px 8px;
-  border-top: 1px solid var(--wf-line);
+  border: 0;
+  border-radius: 9px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    color 160ms ease,
+    background 160ms ease;
+}
+
+.sidebar-user:hover,
+.sidebar-user:focus-visible,
+.sidebar-profile.open .sidebar-user {
+  color: #f5f3ff;
+  background: rgba(139, 114, 255, 0.08);
 }
 
 .avatar {
@@ -1041,40 +1062,88 @@ label {
   font-weight: 800;
 }
 
-.sidebar-user div:nth-child(2) {
+.sidebar-user-copy {
+  display: block;
   min-width: 0;
   flex: 1;
 }
 
-.sidebar-user strong,
-.sidebar-user span {
+.sidebar-user-copy strong,
+.sidebar-user-copy > span {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sidebar-user strong {
+.sidebar-user-chevron {
+  flex: none;
+  transition: transform 160ms ease;
+}
+
+.sidebar-profile.open .sidebar-user-chevron {
+  transform: rotate(180deg);
+}
+
+.sidebar-account-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 2;
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid rgba(139, 114, 255, 0.22);
+  border-radius: 10px;
+  background: #101521;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+}
+
+.sidebar-account-menu > span {
+  color: #6f7a8d;
+  font-size: 0.59rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.sidebar-account-menu > strong {
+  overflow: hidden;
+  color: #dce2eb;
+  font-size: 0.64rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-account-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 9px 10px;
+  border: 1px solid var(--wf-line);
+  border-radius: 7px;
+  color: #aeb7c6;
+  background: rgba(255, 255, 255, 0.025);
+  cursor: pointer;
+  font-size: 0.67rem;
+}
+
+.sidebar-account-menu button:hover,
+.sidebar-account-menu button:focus-visible {
+  border-color: rgba(139, 114, 255, 0.32);
+  color: #ffffff;
+  background: rgba(139, 114, 255, 0.1);
+}
+
+.sidebar-user-copy strong {
   font-size: 0.7rem;
 }
 
-.sidebar-user span {
+.sidebar-user-copy > span {
   margin-top: 3px;
   color: #667083;
   font-size: 0.6rem;
-}
-
-.logout-button {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 9px;
-  padding: 9px;
-  border: 0;
-  color: #757f91;
-  background: transparent;
-  cursor: pointer;
-  font-size: 0.68rem;
 }
 
 .app-main {
@@ -2282,6 +2351,44 @@ label {
   color: #687285;
   font-size: 0.58rem;
 }
+.people-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 99px;
+  font-size: 0.56rem;
+  font-weight: 750;
+}
+.people-status.active {
+  color: #77dbb0;
+  background: rgba(91, 215, 161, 0.09);
+}
+.people-status.inactive {
+  color: #d88b93;
+  background: rgba(214, 102, 113, 0.09);
+}
+.people-actions {
+  display: flex;
+  min-width: 76px;
+  gap: 7px;
+}
+.people-actions button {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  place-items: center;
+  border: 1px solid var(--wf-line);
+  border-radius: 7px;
+  color: #8792a4;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+}
+.people-actions button:hover,
+.people-actions button:focus-visible {
+  border-color: rgba(139, 114, 255, 0.3);
+  color: #f1efff;
+  background: rgba(139, 114, 255, 0.09);
+}
 .table-progress {
   display: flex;
   min-width: 130px;
@@ -2337,11 +2444,26 @@ label {
 .modal h2 {
   margin-bottom: 25px;
 }
+.modal-copy {
+  margin: -10px 0 24px;
+  color: #8d97a8;
+  font-size: 0.72rem;
+  line-height: 1.65;
+}
 .modal label + label {
   margin-top: 14px;
 }
 .modal-actions {
   justify-content: flex-end;
+}
+.button.danger {
+  border-color: rgba(214, 102, 113, 0.28);
+  color: #ffd9dc;
+  background: rgba(214, 102, 113, 0.13);
+}
+.button.danger:hover:not(:disabled) {
+  border-color: rgba(214, 102, 113, 0.45);
+  background: rgba(214, 102, 113, 0.2);
 }
 
 .editor-page {

@@ -115,3 +115,64 @@ def test_admin_only_lists_own_company_employees(api: ApiContext) -> None:
     assert created.json()["company_id"] == str(company_a.id)
     assert listed.status_code == 200
     assert [user["email"] for user in listed.json()] == ["employee-a@example.com"]
+
+
+def test_admin_edits_and_deactivates_own_company_employee(api: ApiContext) -> None:
+    asyncio.run(
+        create_company_user(
+            api.sessions,
+            company_name="NovaTech",
+            email="admin@workflix.demo",
+            role=Role.ADMIN,
+        )
+    )
+    _, external_employee = asyncio.run(
+        create_company_user(
+            api.sessions,
+            company_name="External Company",
+            email="external@example.com",
+            role=Role.EMPLOYEE,
+        )
+    )
+    tokens = login(api.client, "admin@workflix.demo")
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    created = api.client.post(
+        "/api/v1/users",
+        headers=headers,
+        json={
+            "email": "employee@workflix.demo",
+            "full_name": "Employee Demo",
+            "password": "StrongEmployee@2026",
+        },
+    )
+
+    updated = api.client.patch(
+        f"/api/v1/users/{created.json()['id']}",
+        headers=headers,
+        json={
+            "email": "renata.alves@workflix.demo",
+            "full_name": "Renata Alves",
+            "is_active": False,
+        },
+    )
+    external = api.client.patch(
+        f"/api/v1/users/{external_employee.id}",
+        headers=headers,
+        json={"is_active": False},
+    )
+
+    assert updated.status_code == 200
+    assert updated.json()["full_name"] == "Renata Alves"
+    assert updated.json()["email"] == "renata.alves@workflix.demo"
+    assert updated.json()["is_active"] is False
+    assert external.status_code == 404
+    assert (
+        api.client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "renata.alves@workflix.demo",
+                "password": "StrongEmployee@2026",
+            },
+        ).status_code
+        == 401
+    )

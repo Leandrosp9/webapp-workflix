@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, Check, ListChecks, Plus, Send, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ErrorState, LoadingState } from "../../components/PageState";
 import { ApiError, api } from "../../services/http";
@@ -14,6 +14,8 @@ interface DraftItem {
 export default function AdminLearningPathsPage() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const titleInput = useRef<HTMLInputElement>(null);
   const [draftItems, setDraftItems] = useState<DraftItem[]>([]);
   const [employeeIds, setEmployeeIds] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState("");
@@ -38,6 +40,19 @@ export default function AdminLearningPathsPage() {
   );
 
   useEffect(() => {
+    if (!paths.data || creating || selectedId) return;
+    if (paths.data.length > 0) {
+      setSelectedId(paths.data[0].id);
+    } else {
+      setCreating(true);
+    }
+  }, [creating, paths.data, selectedId]);
+
+  useEffect(() => {
+    if (creating) titleInput.current?.focus();
+  }, [creating]);
+
+  useEffect(() => {
     if (!selected) return;
     setForm({ title: selected.title, description: selected.description });
     setDraftItems(
@@ -55,6 +70,7 @@ export default function AdminLearningPathsPage() {
         body: JSON.stringify(form),
       }),
     onSuccess: async (path) => {
+      setCreating(false);
       setSelectedId(path.id);
       setMessageIsError(false);
       setMessage("Trilha criada como rascunho. Agora ordene os conteúdos.");
@@ -135,11 +151,13 @@ export default function AdminLearningPathsPage() {
           className="button primary"
           type="button"
           onClick={() => {
+            setCreating(true);
             setSelectedId(null);
             setForm({ title: "", description: "" });
             setDraftItems([]);
             setMessage("");
             setMessageIsError(false);
+            window.requestAnimationFrame(() => titleInput.current?.focus());
           }}
         >
           <Plus size={16} /> Nova trilha
@@ -162,7 +180,10 @@ export default function AdminLearningPathsPage() {
               type="button"
               key={path.id}
               className={selectedId === path.id ? "active" : ""}
-              onClick={() => setSelectedId(path.id)}
+              onClick={() => {
+                setCreating(false);
+                setSelectedId(path.id);
+              }}
             >
               <ListChecks size={17} />
               <span>
@@ -188,6 +209,7 @@ export default function AdminLearningPathsPage() {
             <label>
               Nome
               <input
+                ref={titleInput}
                 value={form.title}
                 minLength={3}
                 disabled={selected?.status === "PUBLISHED"}

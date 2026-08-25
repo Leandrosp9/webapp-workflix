@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AppError
 from app.core.security import hash_password
 from app.models import Role, TrainingAssignment, User, UserProgress
-from app.schemas.users import UserCreate, UserResponse, UserSummary
+from app.schemas.users import UserCreate, UserResponse, UserSummary, UserUpdate
 
 
 class UserService:
@@ -71,3 +71,39 @@ class UserService:
                 )
             )
         return result
+
+    async def update_employee(self, *, company_id, user_id, payload: UserUpdate) -> User:
+        user = await self._session.scalar(
+            select(User).where(
+                User.id == user_id,
+                User.company_id == company_id,
+                User.role == Role.EMPLOYEE,
+            )
+        )
+        if user is None:
+            raise AppError(
+                code="USER_NOT_FOUND",
+                message="The employee was not found.",
+                status_code=404,
+            )
+
+        if payload.email is not None:
+            email = str(payload.email).lower()
+            duplicate = await self._session.scalar(
+                select(User.id).where(User.email == email, User.id != user.id)
+            )
+            if duplicate:
+                raise AppError(
+                    code="EMAIL_ALREADY_EXISTS",
+                    message="This email is already in use.",
+                    status_code=409,
+                )
+            user.email = email
+        if payload.full_name is not None:
+            user.full_name = payload.full_name.strip()
+        if payload.is_active is not None:
+            user.is_active = payload.is_active
+
+        await self._session.commit()
+        await self._session.refresh(user)
+        return user

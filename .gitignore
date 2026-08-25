@@ -20,7 +20,7 @@ dist/
 coverage/
 *.tsbuildinfo
 playwright-report/
-test-results/playwright/
+test-results/
 
 # IDE and operating system
 .idea/
