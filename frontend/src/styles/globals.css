@@ -1786,6 +1786,47 @@ label {
   font-size: 0.74rem;
 }
 
+.video-player.has-embed {
+  display: block;
+  min-height: 0;
+  overflow: hidden;
+  background: #05070c;
+}
+
+.video-embed {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.video-embed iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.video-player-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 22px;
+  border-top: 1px solid var(--wf-line);
+}
+
+.video-player-footer h2 {
+  margin-top: 4px;
+}
+
+.video-player-footer a {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 7px;
+  color: #c8d0dc;
+}
+
 .pdf-player p {
   color: var(--wf-muted);
   font-size: 0.75rem;
@@ -3503,6 +3544,16 @@ label {
   }
   .article-content {
     padding: 30px 22px;
+  }
+  .video-player,
+  .pdf-player {
+    margin: 17px;
+  }
+  .video-player-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 18px;
   }
   .quiz-card {
     padding: 28px 20px;

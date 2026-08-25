@@ -95,6 +95,25 @@ test("colaborador conclui o fluxo de aprendizagem e avaliação", async ({
   ).toBeVisible();
 });
 
+test("colaborador assiste a um vídeo demonstrativo no treinamento", async ({ page }) => {
+  await login(page, "employee@workflix.demo");
+  await page.goto("/app/catalog");
+
+  await page
+    .getByRole("link")
+    .filter({ hasText: "LGPD na prática: dados com responsabilidade" })
+    .first()
+    .click();
+
+  await expect(
+    page.getByTitle("Vídeo do treinamento LGPD na prática: dados com responsabilidade"),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Abrir no YouTube" })).toHaveAttribute(
+    "href",
+    "https://www.youtube.com/watch?v=jVuQjczLvRI",
+  );
+});
+
 test("administrador consulta indicadores, treinamentos e colaboradores", async ({
   page,
 }) => {

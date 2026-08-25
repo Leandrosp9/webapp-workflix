@@ -22,6 +22,32 @@ import type {
   Training,
 } from "../types/api";
 
+function youtubeEmbedUrl(videoUrl: string | null) {
+  if (!videoUrl) return null;
+  try {
+    const url = new URL(videoUrl);
+    const hostname = url.hostname.replace(/^www\./, "");
+    let videoId: string | null = null;
+
+    if (hostname === "youtu.be") {
+      videoId = url.pathname.split("/").filter(Boolean)[0] ?? null;
+    } else if (hostname === "youtube.com" || hostname === "m.youtube.com") {
+      if (url.pathname === "/watch") {
+        videoId = url.searchParams.get("v");
+      } else {
+        const [kind, id] = url.pathname.split("/").filter(Boolean);
+        if (["embed", "shorts", "live"].includes(kind)) videoId = id ?? null;
+      }
+    }
+
+    return videoId && /^[\w-]{11}$/.test(videoId)
+      ? `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function TrainingPlayerPage() {
   const { trainingId = "" } = useParams();
   const queryClient = useQueryClient();
@@ -105,6 +131,7 @@ export default function TrainingPlayerPage() {
   if (!query.data) return <ErrorState retry={() => void query.refetch()} />;
   const training = query.data;
   const percent = training.progress_percent ?? 0;
+  const videoEmbed = youtubeEmbedUrl(training.video_url);
 
   return (
     <div className="player-page">
@@ -125,15 +152,41 @@ export default function TrainingPlayerPage() {
             </div>
           </div>
           {training.type === "VIDEO" && (
-            <div className="video-player">
-              <PlayCircle size={58} />
-              <h2>Conteúdo em vídeo</h2>
-              {training.video_url ? (
-                <a href={training.video_url} target="_blank" rel="noreferrer">
-                  Abrir vídeo em nova aba
-                </a>
+            <div className={`video-player${videoEmbed ? " has-embed" : ""}`}>
+              {videoEmbed ? (
+                <>
+                  <div className="video-embed">
+                    <iframe
+                      src={videoEmbed}
+                      title={`Vídeo do treinamento ${training.title}`}
+                      loading="lazy"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                  <div className="video-player-footer">
+                    <div>
+                      <span className="section-kicker">Conteúdo demonstrativo</span>
+                      <h2>Assista sem sair do treinamento</h2>
+                    </div>
+                    <a href={training.video_url ?? "#"} target="_blank" rel="noreferrer">
+                      Abrir no YouTube <ArrowRight size={14} />
+                    </a>
+                  </div>
+                </>
               ) : (
-                <p>O material de apoio deste treinamento está disponível abaixo.</p>
+                <>
+                  <PlayCircle size={58} />
+                  <h2>Conteúdo em vídeo</h2>
+                  {training.video_url ? (
+                    <a href={training.video_url} target="_blank" rel="noreferrer">
+                      Abrir vídeo em nova aba
+                    </a>
+                  ) : (
+                    <p>O material de apoio deste treinamento está disponível abaixo.</p>
+                  )}
+                </>
               )}
             </div>
           )}
