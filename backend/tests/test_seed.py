@@ -32,9 +32,9 @@ def test_demo_seed_is_idempotent_and_credentials_work(api: ApiContext) -> None:
 
     companies, users, trainings, quizzes, paths, certificates, videos = asyncio.run(run_twice())
     assert (companies, users, trainings, quizzes) == (1, 6, 6, 6)
-    assert (paths, certificates) == (2, 1)
+    assert (paths, certificates) == (2, 11)
     assert videos == 2
     assert login(api.client, "admin@workflix.demo", "Workflix@2026")["user"]["role"] == "ADMIN"
-    assert (
-        login(api.client, "employee@workflix.demo", "Workflix@2026")["user"]["role"] == "EMPLOYEE"
-    )
+    employee = login(api.client, "employee@workflix.demo", "Workflix@2026")["user"]
+    assert employee["role"] == "EMPLOYEE"
+    assert employee["cpf"] == "90000000175"

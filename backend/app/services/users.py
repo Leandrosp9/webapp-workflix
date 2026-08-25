@@ -19,10 +19,19 @@ class UserService:
                 message="This email is already in use.",
                 status_code=409,
             )
+        if await self._session.scalar(
+            select(User.id).where(User.company_id == company_id, User.cpf == payload.cpf)
+        ):
+            raise AppError(
+                code="CPF_ALREADY_EXISTS",
+                message="This CPF is already in use by the company.",
+                status_code=409,
+            )
         user = User(
             company_id=company_id,
             email=email,
             full_name=payload.full_name.strip(),
+            cpf=payload.cpf,
             password_hash=hash_password(payload.password),
             role=Role.EMPLOYEE,
         )
@@ -101,6 +110,21 @@ class UserService:
             user.email = email
         if payload.full_name is not None:
             user.full_name = payload.full_name.strip()
+        if payload.cpf is not None:
+            duplicate_cpf = await self._session.scalar(
+                select(User.id).where(
+                    User.company_id == company_id,
+                    User.cpf == payload.cpf,
+                    User.id != user.id,
+                )
+            )
+            if duplicate_cpf:
+                raise AppError(
+                    code="CPF_ALREADY_EXISTS",
+                    message="This CPF is already in use by the company.",
+                    status_code=409,
+                )
+            user.cpf = payload.cpf
         if payload.is_active is not None:
             user.is_active = payload.is_active
 

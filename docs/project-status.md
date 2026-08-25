@@ -1,6 +1,6 @@
 # Status do Projeto Workflix
 
-Last updated: 2026-08-24
+Last updated: 2026-08-25
 
 ## Release status
 
@@ -14,7 +14,8 @@ project for GitHub, LinkedIn, recruiter reviews, and freelancer demonstrations.
 - Responsive ADMIN and EMPLOYEE experiences with a premium dark interface and Workflix branding.
 - Authentication, role-based access control, tenant isolation, rotating refresh tokens, and Argon2
   password hashing.
-- Employee home, catalog, player, progress, quizzes, learning paths, and verifiable certificates.
+- Employee home, catalog, navigable player, progress, quizzes, learning paths, and automatically
+  issued training/path certificates with CPF and public verification.
 - ADMIN dashboard, training authoring, assignments, learning paths, analytics, and CSV/PDF exports.
 - Gemini-assisted training and quiz generation behind a provider interface, with human review
   before persistence.
@@ -45,22 +46,22 @@ The backend health endpoints are
 
 ## Final validation
 
-Validated on 2026-08-24:
+Validated on 2026-08-25:
 
-- Backend: 44 Pytest tests passed.
-- Python quality: Ruff lint and format checks passed across 104 files.
+- Backend: 45 Pytest tests passed.
+- Python quality: Ruff lint and format checks passed.
 - Frontend: 1 Vitest test passed; ESLint and Prettier checks passed.
 - Production build: Vite passed with 1,746 modules transformed.
-- Public E2E: 7 Playwright journeys passed against the Cloudflare and Northflank deployment.
+- Local E2E: 9 Playwright journeys passed, including learning completion, automatic certificate,
+  PDF processing, account management, and responsive viewports.
 - Public PDF flow: upload, Backblaze B2 persistence, durable-worker extraction, status polling, and
   cleanup passed.
 - Gemini: a real training draft was generated successfully with `gemini-3.6-flash`.
 - API: `/health` and `/ready` returned HTTP 200; direct SPA routes returned HTTP 200.
 - Worker: the running replica logged `document_worker_started`.
-- Database: migration-owned startup completed against Neon; local Alembic head remains
-  `20260822_0006`.
-- Local Docker: Docker Desktop was not running during this cloud-release check; the previously
-  validated Compose workflow remains covered by the repository and CI configuration.
+- Database: migration-owned startup completed locally at Alembic head `20260825_0007`.
+- Local Docker: frontend, backend, worker, and PostgreSQL containers are healthy; liveness and
+  readiness return HTTP 200.
 
 ## Demonstration flow
 

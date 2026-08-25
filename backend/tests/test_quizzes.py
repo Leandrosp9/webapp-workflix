@@ -13,6 +13,7 @@ async def add_employee(api: ApiContext, company_id) -> User:
             company_id=company_id,
             email="learner@quiz.example.com",
             full_name="Quiz Learner",
+            cpf="90000000760",
             password_hash=hash_password("StrongDemo@2026"),
             role=Role.EMPLOYEE,
         )

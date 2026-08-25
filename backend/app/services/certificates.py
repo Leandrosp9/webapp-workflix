@@ -17,15 +17,27 @@ from sqlalchemy.orm import selectinload
 from app.core.errors import AppError
 from app.models import (
     Certificate,
+    CertificateType,
     Company,
     LearningPath,
     LearningPathAssignment,
     LearningPathItem,
     LearningPathStatus,
+    Training,
+    TrainingAssignment,
+    TrainingStatus,
     User,
     UserProgress,
 )
 from app.schemas.learning_paths import CertificateResponse, CertificateVerification
+
+
+def format_cpf(cpf: str) -> str:
+    return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+
+
+def mask_cpf(cpf: str | None) -> str | None:
+    return f"***.{cpf[3:6]}.{cpf[6:9]}-**" if cpf else None
 
 
 class CertificateService:
@@ -35,6 +47,81 @@ class CertificateService:
     @staticmethod
     def _response(certificate: Certificate) -> CertificateResponse:
         return CertificateResponse.model_validate(certificate, from_attributes=True)
+
+    async def issue_training(
+        self,
+        *,
+        company_id: UUID,
+        user_id: UUID,
+        training_id: UUID,
+    ) -> Certificate | None:
+        existing = await self._session.scalar(
+            select(Certificate).where(
+                Certificate.training_id == training_id,
+                Certificate.user_id == user_id,
+            )
+        )
+        if existing is not None:
+            return existing
+
+        training = await self._session.scalar(
+            select(Training)
+            .join(
+                TrainingAssignment,
+                TrainingAssignment.training_id == Training.id,
+            )
+            .join(
+                UserProgress,
+                (UserProgress.training_id == Training.id)
+                & (UserProgress.user_id == TrainingAssignment.employee_id),
+            )
+            .where(
+                Training.id == training_id,
+                Training.company_id == company_id,
+                Training.status == TrainingStatus.PUBLISHED,
+                TrainingAssignment.company_id == company_id,
+                TrainingAssignment.employee_id == user_id,
+                UserProgress.company_id == company_id,
+                UserProgress.progress_percent == 100,
+            )
+        )
+        if training is None:
+            return None
+
+        user = await self._session.scalar(
+            select(User).where(User.id == user_id, User.company_id == company_id)
+        )
+        company = await self._session.scalar(select(Company).where(Company.id == company_id))
+        if user is None or company is None:
+            return None
+
+        certificate = Certificate(
+            company_id=company_id,
+            learning_path_id=None,
+            training_id=training.id,
+            certificate_type=CertificateType.TRAINING,
+            user_id=user_id,
+            code=f"WFX-{token_hex(16).upper()}",
+            user_full_name=user.full_name,
+            user_email=user.email,
+            user_cpf=user.cpf,
+            company_name=company.name,
+            learning_path_title=training.title,
+            workload_minutes=training.estimated_minutes,
+            issued_at=datetime.now(UTC),
+        )
+        try:
+            async with self._session.begin_nested():
+                self._session.add(certificate)
+                await self._session.flush()
+        except IntegrityError:
+            return await self._session.scalar(
+                select(Certificate).where(
+                    Certificate.training_id == training_id,
+                    Certificate.user_id == user_id,
+                )
+            )
+        return certificate
 
     async def issue_eligible(
         self,
@@ -101,10 +188,13 @@ class CertificateService:
             certificate = Certificate(
                 company_id=company_id,
                 learning_path_id=learning_path.id,
+                training_id=None,
+                certificate_type=CertificateType.LEARNING_PATH,
                 user_id=user_id,
                 code=f"WFX-{token_hex(16).upper()}",
                 user_full_name=user.full_name,
                 user_email=user.email,
+                user_cpf=user.cpf,
                 company_name=company.name,
                 learning_path_title=learning_path.title,
                 workload_minutes=sum(item.training.estimated_minutes for item in required_items),
@@ -169,9 +259,12 @@ class CertificateService:
             )
         return CertificateVerification(
             code=certificate.code,
+            certificate_type=certificate.certificate_type,
             user_full_name=certificate.user_full_name,
+            user_cpf_masked=mask_cpf(certificate.user_cpf),
             company_name=certificate.company_name,
             learning_path_title=certificate.learning_path_title,
+            title=certificate.title,
             workload_minutes=certificate.workload_minutes,
             issued_at=certificate.issued_at,
         )
@@ -225,10 +318,19 @@ class CertificateService:
         pdf.setLineWidth(2)
         pdf.line(150, height - 226, width - 150, height - 226)
 
+        if certificate.user_cpf:
+            pdf.setFillColor(muted)
+            pdf.setFont("Helvetica", 10)
+            pdf.drawCentredString(
+                width / 2, height - 246, f"CPF {format_cpf(certificate.user_cpf)}"
+            )
+
         pdf.setFillColor(muted)
         pdf.setFont("Helvetica", 11)
         completion_text = (
-            f"concluiu com êxito a trilha de aprendizagem da {certificate.company_name}"
+            f"concluiu com êxito o treinamento da {certificate.company_name}"
+            if certificate.certificate_type == CertificateType.TRAINING
+            else f"concluiu com êxito a trilha de aprendizagem da {certificate.company_name}"
         )
         pdf.drawCentredString(width / 2, height - 263, completion_text)
         title_size = 20

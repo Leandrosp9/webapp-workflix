@@ -327,9 +327,13 @@ class TrainingService:
                 progress.completed_at = now
         await self._session.flush()
         if progress.progress_percent == 100:
-            await CertificateService(self._session).issue_eligible(
-                company_id=company_id, user_id=employee_id
+            certificates = CertificateService(self._session)
+            await certificates.issue_training(
+                company_id=company_id,
+                user_id=employee_id,
+                training_id=training_id,
             )
+            await certificates.issue_eligible(company_id=company_id, user_id=employee_id)
         await self._session.commit()
         await self._session.refresh(progress)
         return self._response(training, progress=progress, assignment=assignment, has_quiz=has_quiz)

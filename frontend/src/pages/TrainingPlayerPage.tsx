@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ErrorState, LoadingState } from "../components/PageState";
 import { ApiError, api, downloadPdf } from "../services/http";
@@ -50,6 +50,7 @@ function youtubeEmbedUrl(videoUrl: string | null) {
 
 export default function TrainingPlayerPage() {
   const { trainingId = "" } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const contentRootRef = useRef<HTMLElement>(null);
   const [question, setQuestion] = useState("");
@@ -69,6 +70,7 @@ export default function TrainingPlayerPage() {
     onSuccess: (training) => {
       queryClient.setQueryData(["training", trainingId], training);
       void queryClient.invalidateQueries({ queryKey: ["employee-home"] });
+      void queryClient.invalidateQueries({ queryKey: ["employee-certificates"] });
     },
   });
   const documentQuery = useQuery({
@@ -144,6 +146,12 @@ export default function TrainingPlayerPage() {
   }
 
   function handleResume() {
+    const currentTraining = query.data;
+    if (currentTraining?.has_quiz && (currentTraining.progress_percent ?? 0) >= 50) {
+      void navigate(`/app/training/${currentTraining.id}/quiz`);
+      return;
+    }
+
     const content = contentRootRef.current?.querySelector<HTMLElement>("[data-learning-content]");
     content?.focus({ preventScroll: true });
     const fallbackPosition = content
@@ -161,6 +169,27 @@ export default function TrainingPlayerPage() {
       top: Math.max(0, Math.min(requestedPosition, maximumPosition)),
       behavior: "smooth",
     });
+  }
+
+  async function handleAdvance() {
+    const currentTraining = query.data;
+    if (!currentTraining) return;
+
+    try {
+      if (currentTraining.has_quiz) {
+        if ((currentTraining.progress_percent ?? 0) < 50) {
+          await progress.mutateAsync(50);
+        }
+        void navigate(`/app/training/${currentTraining.id}/quiz`);
+        return;
+      }
+
+      await progress.mutateAsync(100);
+      window.localStorage.removeItem(`workflix.training.resume.${currentTraining.id}`);
+      void navigate("/app/certificates");
+    } catch {
+      // The mutation exposes the error in the page feedback and keeps the user on this step.
+    }
   }
 
   if (query.isLoading) return <LoadingState label="Abrindo treinamento…" />;
@@ -350,6 +379,45 @@ export default function TrainingPlayerPage() {
               {training.content}
             </div>
           )}
+          <nav className="learning-navigation" aria-label="Navegação do treinamento">
+            <div className="learning-navigation-copy">
+              <span className="section-kicker">
+                {training.has_quiz ? "Etapa 1 de 2" : "Etapa única"}
+              </span>
+              <strong>
+                {percent === 100
+                  ? "Treinamento concluído"
+                  : training.has_quiz
+                    ? "Conteúdo concluído? Siga para a avaliação."
+                    : "Concluiu a leitura? Finalize o treinamento."}
+              </strong>
+            </div>
+            <div className="learning-navigation-actions">
+              <Link className="button ghost" to="/app/catalog">
+                <ArrowLeft size={16} /> Voltar aos treinamentos
+              </Link>
+              {percent === 100 ? (
+                <Link className="button primary" to="/app">
+                  Voltar ao início <ArrowRight size={16} />
+                </Link>
+              ) : (
+                <button
+                  className="button primary"
+                  type="button"
+                  disabled={progress.isPending}
+                  onClick={() => void handleAdvance()}
+                >
+                  {progress.isPending
+                    ? "Salvando avanço…"
+                    : training.has_quiz
+                      ? "Avançar para avaliação"
+                      : "Concluir treinamento"}
+                  {!progress.isPending &&
+                    (training.has_quiz ? <ArrowRight size={16} /> : <CheckCircle2 size={16} />)}
+                </button>
+              )}
+            </div>
+          </nav>
         </article>
         <aside className="player-sidebar">
           <span className="section-kicker">Seu progresso</span>
@@ -361,34 +429,36 @@ export default function TrainingPlayerPage() {
             <p>Treinamento concluído.</p>
           ) : (
             <>
-              <p>Seu avanço fica salvo neste dispositivo.</p>
+              <p>
+                {training.has_quiz && percent >= 50
+                  ? "Seu conteúdo foi salvo. Continue pela avaliação."
+                  : "Seu avanço fica salvo neste dispositivo."}
+              </p>
               <button className="resume-button" type="button" onClick={handleResume}>
-                Continuar de onde parou <ArrowRight size={14} />
+                {training.has_quiz && percent >= 50
+                  ? "Continuar na avaliação"
+                  : "Continuar de onde parou"}
+                <ArrowRight size={14} />
               </button>
             </>
           )}
-          {training.has_quiz ? (
-            <Link className="button primary" to={`/app/training/${training.id}/quiz`}>
-              Fazer avaliação <ArrowRight size={16} />
+          {percent === 100 ? (
+            <Link className="button primary" to="/app">
+              Voltar ao início <ArrowRight size={16} />
             </Link>
           ) : (
             <button
               className="button primary"
               type="button"
-              disabled={progress.isPending || percent === 100}
-              onClick={() => progress.mutate(100)}
-            >
-              <CheckCircle2 size={16} /> {percent === 100 ? "Concluído" : "Marcar como concluído"}
-            </button>
-          )}
-          {percent < 50 && (
-            <button
-              className="text-button"
-              type="button"
               disabled={progress.isPending}
-              onClick={() => progress.mutate(50)}
+              onClick={() => void handleAdvance()}
             >
-              Salvar progresso em 50%
+              {training.has_quiz ? <ArrowRight size={16} /> : <CheckCircle2 size={16} />}
+              {progress.isPending
+                ? "Salvando…"
+                : training.has_quiz
+                  ? "Avançar para avaliação"
+                  : "Concluir treinamento"}
             </button>
           )}
           {progress.isError && (

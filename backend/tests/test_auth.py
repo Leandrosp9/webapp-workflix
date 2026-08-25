@@ -106,6 +106,7 @@ def test_admin_only_lists_own_company_employees(api: ApiContext) -> None:
         json={
             "email": "employee-a@example.com",
             "full_name": "Employee A",
+            "cpf": "900.000.006-80",
             "password": "StrongEmployee@2026",
         },
     )
@@ -113,6 +114,7 @@ def test_admin_only_lists_own_company_employees(api: ApiContext) -> None:
 
     assert created.status_code == 201
     assert created.json()["company_id"] == str(company_a.id)
+    assert created.json()["cpf"] == "90000000680"
     assert listed.status_code == 200
     assert [user["email"] for user in listed.json()] == ["employee-a@example.com"]
 
@@ -142,6 +144,7 @@ def test_admin_edits_and_deactivates_own_company_employee(api: ApiContext) -> No
         json={
             "email": "employee@workflix.demo",
             "full_name": "Employee Demo",
+            "cpf": "900.000.007-60",
             "password": "StrongEmployee@2026",
         },
     )
@@ -152,6 +155,7 @@ def test_admin_edits_and_deactivates_own_company_employee(api: ApiContext) -> No
         json={
             "email": "renata.alves@workflix.demo",
             "full_name": "Renata Alves",
+            "cpf": "900.000.008-41",
             "is_active": False,
         },
     )
@@ -164,6 +168,7 @@ def test_admin_edits_and_deactivates_own_company_employee(api: ApiContext) -> No
     assert updated.status_code == 200
     assert updated.json()["full_name"] == "Renata Alves"
     assert updated.json()["email"] == "renata.alves@workflix.demo"
+    assert updated.json()["cpf"] == "90000000841"
     assert updated.json()["is_active"] is False
     assert external.status_code == 404
     assert (

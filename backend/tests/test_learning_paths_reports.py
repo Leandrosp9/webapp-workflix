@@ -87,9 +87,12 @@ def test_learning_path_completion_issues_verifiable_pdf_certificate(api: ApiCont
     ).json()
     assert midway["progress_percent"] == 50
     assert [item["available"] for item in midway["items"]] == [True, True]
-    assert (
-        api.client.get("/api/v1/employee/certificates", headers=auth(employee_token)).json() == []
-    )
+    midway_certificates = api.client.get(
+        "/api/v1/employee/certificates", headers=auth(employee_token)
+    ).json()
+    assert len(midway_certificates) == 1
+    assert midway_certificates[0]["certificate_type"] == "TRAINING"
+    assert midway_certificates[0]["title"] == first["title"]
 
     completed = api.client.patch(
         f"/api/v1/employee/trainings/{second['id']}/progress",
@@ -100,9 +103,10 @@ def test_learning_path_completion_issues_verifiable_pdf_certificate(api: ApiCont
     certificates = api.client.get(
         "/api/v1/employee/certificates", headers=auth(employee_token)
     ).json()
-    assert len(certificates) == 1
-    certificate = certificates[0]
+    assert len(certificates) == 3
+    certificate = next(item for item in certificates if item["certificate_type"] == "LEARNING_PATH")
     assert certificate["workload_minutes"] == 75
+    assert certificate["user_cpf"] == "90000000680"
 
     # Replaying completion cannot create duplicate evidence.
     api.client.patch(
@@ -112,12 +116,14 @@ def test_learning_path_completion_issues_verifiable_pdf_certificate(api: ApiCont
     )
     assert (
         len(api.client.get("/api/v1/employee/certificates", headers=auth(employee_token)).json())
-        == 1
+        == 3
     )
 
     verification = api.client.get(f"/api/v1/certificates/verify/{certificate['code']}")
     assert verification.status_code == 200
+    assert verification.json()["certificate_type"] == "LEARNING_PATH"
     assert verification.json()["learning_path_title"] == learning_path["title"]
+    assert verification.json()["user_cpf_masked"] == "***.000.006-**"
     pdf = api.client.get(
         f"/api/v1/certificates/{certificate['id']}/pdf", headers=auth(employee_token)
     )
@@ -232,7 +238,7 @@ def test_manager_analytics_and_csv_exports_use_real_scoped_data(api: ApiContext)
         "completion_percent": 100,
         "overdue_assignments": 0,
         "learning_hours": 1.0,
-        "certificates_issued": 1,
+        "certificates_issued": 2,
         "published_paths": 1,
     }
     progress_csv = api.client.get("/api/v1/admin/reports/progress.csv", headers=auth(admin_token))

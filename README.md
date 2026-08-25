@@ -138,7 +138,8 @@ As contas demo da empresa fictícia NovaTech compartilham a senha `Workflix@2026
 | Colaborador   | `employee@workflix.demo` |
 
 O seed idempotente inclui cinco colaboradores fictícios, seis treinamentos publicados, quizzes
-específicos, progresso realista, duas trilhas de aprendizagem, um certificado e analytics
+específicos, progresso realista, duas trilhas de aprendizagem, certificados de treinamentos e
+trilhas, além de analytics
 preenchidos. Essas credenciais existem apenas para a demonstração pública de portfólio e nunca
 devem ser reutilizadas.
 
