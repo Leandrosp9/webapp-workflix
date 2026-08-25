@@ -2609,6 +2609,9 @@ label {
 
 .modal {
   width: min(100%, 430px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 31px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 15px;
