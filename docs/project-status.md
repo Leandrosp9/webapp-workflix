@@ -1,4 +1,4 @@
-# Workflix Project Status
+# Status do Projeto Workflix
 
 Last updated: 2026-08-24
 

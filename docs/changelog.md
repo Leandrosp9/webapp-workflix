@@ -1,4 +1,4 @@
-# Changelog
+# Histórico de Alterações
 
 All notable development changes are recorded here. This project follows the spirit of Keep a Changelog and uses semantic versioning once releases begin.
 

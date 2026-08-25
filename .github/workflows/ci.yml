@@ -39,7 +39,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm exec --workspace frontend prettier -- --check .
-      - run: npm exec prettier -- --check tests/e2e playwright.config.ts package.json
+      - run: npm exec prettier -- --check tests/e2e package.json
       - run: npm run test
       - run: npm run build
 
@@ -52,7 +52,7 @@ jobs:
       - name: Validate staging overlay
         env:
           MINIO_ROOT_PASSWORD: ci-only-minio-password-2026
-        run: docker compose -f docker-compose.yml -f docker-compose.staging.yml config --quiet
+        run: docker compose -f docker-compose.yml -f docker/compose.staging.yml config --quiet
 
   e2e:
     name: Browser journeys

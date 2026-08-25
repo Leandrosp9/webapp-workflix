@@ -1,3 +1,4 @@
+# Overlay de staging com Redis, armazenamento S3 privado e secrets gerenciados.
 name: workflix-staging
 
 services:

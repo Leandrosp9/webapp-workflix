@@ -1,8 +1,0 @@
-Workflix database migrations.
-
-Generate revisions from reviewed model changes and apply them with:
-
-    alembic upgrade head
-
-Production startup must never call SQLAlchemy create_all().
-

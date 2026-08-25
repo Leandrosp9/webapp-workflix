@@ -1,136 +1,150 @@
 # Workflix
 
-![Workflix — Corporate Learning & Knowledge Platform](docs/assets/workflix-banner.svg)
+![Workflix — Plataforma Corporativa de Aprendizagem e Conhecimento](docs/assets/workflix-banner.svg)
 
-**Corporate Learning & Knowledge Platform**
+**Plataforma Corporativa de Aprendizagem e Conhecimento**
 
-Workflix is a portfolio-ready SaaS product that brings corporate training, internal knowledge,
-assessments, learning paths, certificates, and management visibility into one secure experience.
+Workflix é um produto SaaS pronto para portfólio que reúne treinamentos corporativos, conhecimento
+interno, avaliações, trilhas de aprendizagem, certificados e visibilidade gerencial em uma
+experiência segura.
 
-> Release status: **PORTFOLIO RELEASE READY** — the product scope is complete and validated end to
-> end for demonstration.
+> Status da versão: **PORTFOLIO RELEASE READY** — o escopo do produto está concluído e validado de
+> ponta a ponta para demonstrações.
 
-## The Problem
+Consulte o [status detalhado da versão](docs/project-status.md) e o
+[histórico de alterações](docs/changelog.md).
 
-Companies keep training, procedures, videos, and internal documents across shared drives, email,
-and disconnected tools. Employees struggle to find the current material, while managers cannot
-reliably answer who received, started, completed, or acknowledged each requirement.
+## O Problema
 
-That fragmentation creates operational risk, repeated administrative work, and weak evidence for
-mandatory learning.
+Empresas mantêm treinamentos, procedimentos, vídeos e documentos internos espalhados entre
+diretórios compartilhados, e-mails e ferramentas desconectadas. Colaboradores têm dificuldade para
+encontrar o material atualizado, enquanto gestores não conseguem identificar com segurança quem
+recebeu, iniciou, concluiu ou confirmou a leitura de cada conteúdo obrigatório.
 
-## The Solution
+Essa fragmentação gera riscos operacionais, trabalho administrativo repetitivo e evidências frágeis
+sobre treinamentos obrigatórios.
 
-Workflix provides a company-scoped learning hub where administrators publish and assign content,
-employees continue from where they stopped, quizzes confirm understanding, ordered paths guide
-development, and verifiable certificates prove completion. Analytics and CSV exports turn the same
-source of truth into management visibility.
+## A Solução
 
-The product combines a premium content-discovery experience with explicit multi-tenant boundaries,
-durable document processing, and human-reviewed cloud AI authoring.
+Workflix oferece uma central de aprendizagem isolada por empresa, na qual administradores publicam
+e atribuem conteúdos, colaboradores continuam de onde pararam, quizzes confirmam o entendimento,
+trilhas ordenadas orientam o desenvolvimento e certificados verificáveis comprovam a conclusão.
+Analytics e exportações CSV transformam a mesma fonte de dados em visibilidade gerencial.
 
-## Features
+O produto combina uma experiência premium de descoberta de conteúdo com isolamento multi-tenant
+explícito, processamento durável de documentos e criação de conteúdo por IA em nuvem com revisão
+humana.
 
-- Responsive dark-mode experiences for `ADMIN` and `EMPLOYEE` profiles.
-- Secure JWT authentication with rotating refresh tokens and Argon2 password hashing.
-- Company-scoped users, trainings, assignments, progress, quizzes, attempts, and authorization.
-- Article, video, and PDF training formats with draft and published states.
-- Training creation, editing, assignment, search, progress, and server-corrected assessments.
-- Ordered learning paths with required steps, sequential availability, and aggregate progress.
-- Automatic certificates with immutable identity snapshots and public verification codes.
-- Professional PDF certificate downloads generated with ReportLab.
-- Management dashboards, analytics, overdue visibility, learning hours, and safe CSV exports.
-- Private PDF versions, authorized downloads, extraction, selective OCR, acknowledgements, and
-  document questions with page citations.
-- Durable PostgreSQL worker queue with leases, retries, heartbeats, and dead-letter handling.
-- Redis-backed rate limits, S3-compatible private object storage, and deployment-scoped secrets,
-  with optional AWS Secrets Manager bootstrap support.
-- Idempotent, realistic NovaTech demo data for immediate product presentation.
+## Funcionalidades
 
-## AI Features
+- Experiências responsivas em modo escuro para os perfis `ADMIN` e `EMPLOYEE`.
+- Autenticação JWT segura, refresh tokens rotativos e hash de senhas com Argon2.
+- Usuários, treinamentos, atribuições, progresso, quizzes, tentativas e autorizações isolados por
+  empresa.
+- Treinamentos nos formatos artigo, vídeo e PDF, com estados de rascunho e publicado.
+- Criação, edição, atribuição, busca e acompanhamento de treinamentos, com avaliações corrigidas
+  pelo servidor.
+- Trilhas de aprendizagem ordenadas, com etapas obrigatórias, liberação sequencial e progresso
+  consolidado.
+- Certificados automáticos com dados de identidade imutáveis e códigos públicos de verificação.
+- Download de certificados profissionais em PDF gerados com ReportLab.
+- Dashboards gerenciais, analytics, acompanhamento de atrasos, horas de aprendizagem e exportações
+  CSV seguras.
+- Versionamento privado de PDFs, downloads autorizados, extração, OCR seletivo, registros de ciência
+  e perguntas sobre documentos com citações de página.
+- Fila durável de workers em PostgreSQL com leases, tentativas, heartbeats e tratamento de dead
+  letters.
+- Rate limiting com Redis, armazenamento privado compatível com S3 e secrets isolados por ambiente,
+  com suporte opcional a bootstrap pelo AWS Secrets Manager.
+- Dados demo realistas e idempotentes da empresa fictícia NovaTech para apresentação imediata.
 
-- **Training generation:** Gemini creates a structured training draft from a topic, audience,
-  objectives, and expected duration.
-- **Quiz generation:** Gemini creates reviewable multiple-choice questions, explanations, correct
-  options, and a passing score for an existing training.
-- **Gemini integration:** the backend uses an injected REST transport and validates every generated
-  payload with Pydantic before it reaches the editor.
-- **Cloud AI architecture:** application workflows depend on `AIService`, not a vendor SDK. Gemini
-  is primary, Groq is an optional authoring fallback adapter, and local model execution is disabled.
-- **Human review:** AI output remains a draft and is never published automatically.
+## Recursos de IA
 
-Tests use fake providers and do not consume Gemini quota. The portfolio deployment injects Gemini
-through the hosting platform's secret group; local generation requires a private
-`GEMINI_API_KEY` with provider availability and quota.
+- **Geração de treinamento:** o Gemini cria um rascunho estruturado a partir de tema, público,
+  objetivos e duração esperada.
+- **Geração de quiz:** o Gemini cria questões de múltipla escolha revisáveis, explicações, opções
+  corretas e nota mínima para um treinamento existente.
+- **Integração Gemini:** o backend usa um transporte REST injetável e valida cada payload gerado com
+  Pydantic antes de enviá-lo ao editor.
+- **Arquitetura de IA em nuvem:** os fluxos da aplicação dependem de `AIService`, não de um SDK de
+  fornecedor. Gemini é o provedor principal, Groq é um adaptador opcional de fallback e a execução
+  de modelos locais permanece desativada.
+- **Revisão humana:** o conteúdo gerado por IA permanece como rascunho e nunca é publicado
+  automaticamente.
 
-## Tech Stack
+Os testes usam provedores simulados e não consomem a cota do Gemini. No ambiente de portfólio, a
+credencial é injetada pelo grupo de secrets da plataforma de hospedagem; a geração local exige uma
+`GEMINI_API_KEY` privada, disponibilidade do provedor e cota.
 
-| Area           | Technology                                                         |
-| -------------- | ------------------------------------------------------------------ |
-| Frontend       | React 19, Vite, TypeScript, React Router, TanStack Query           |
-| API            | FastAPI, Python 3.13, Pydantic                                     |
-| Persistence    | PostgreSQL 17, pgvector, SQLAlchemy 2, Alembic                     |
-| AI & documents | Gemini, PyMuPDF, Tesseract OCR, ReportLab                          |
-| Infrastructure | Docker, Cloudflare Pages, Northflank, Neon, Redis, Backblaze B2/S3 |
-| Quality        | Pytest, Ruff, Vitest, ESLint, Prettier, Playwright, GitHub Actions |
+## Tecnologias
 
-## Architecture
+| Área               | Tecnologia                                                         |
+| ------------------ | ------------------------------------------------------------------ |
+| Frontend           | React 19, Vite, TypeScript, React Router, TanStack Query           |
+| API                | FastAPI, Python 3.13, Pydantic                                     |
+| Persistência       | PostgreSQL 17, pgvector, SQLAlchemy 2, Alembic                     |
+| IA e documentos    | Gemini, PyMuPDF, Tesseract OCR, ReportLab                          |
+| Infraestrutura     | Docker, Cloudflare Pages, Northflank, Neon, Redis, Backblaze B2/S3 |
+| Qualidade e testes | Pytest, Ruff, Vitest, ESLint, Prettier, Playwright, GitHub Actions |
+
+## Arquitetura
 
 ```mermaid
 flowchart LR
-    Browser[Browser] --> Pages[React + Vite on Cloudflare Pages]
-    Pages --> API[FastAPI on Northflank]
-    API --> Services[Domain services]
+    Browser[Navegador] --> Pages[React + Vite no Cloudflare Pages]
+    Pages --> API[FastAPI no Northflank]
+    API --> Services[Serviços de domínio]
     Services --> DB[(Neon PostgreSQL + pgvector)]
-    Services --> Storage[Backblaze B2 private S3 storage]
+    Services --> Storage[Armazenamento privado Backblaze B2]
     Services --> AI[AIService]
     AI --> Gemini[Gemini Cloud AI]
-    AI -. optional fallback .-> Groq[Groq]
-    API --> Queue[(Durable document jobs)]
-    Worker[Northflank worker] --> Queue
+    AI -. fallback opcional .-> Groq[Groq]
+    API --> Queue[(Fila durável de documentos)]
+    Worker[Worker no Northflank] --> Queue
     Worker --> Storage
     Worker --> DB
-    API --> Redis[(Managed Redis rate limits)]
-    Secrets[Northflank secret group] -. injects .-> API
-    Secrets -. injects .-> Worker
+    API --> Redis[(Rate limiting com Redis)]
+    Secrets[Grupo de secrets do Northflank] -. injeta .-> API
+    Secrets -. injeta .-> Worker
 ```
 
-Workflix is a modular monolith with a separately scalable document worker. This keeps transactions
-simple while isolating extraction, OCR, and indexing from HTTP replicas. See
-[architecture.md](docs/architecture.md) and the [architecture decisions](docs/adr).
+Workflix é um monólito modular com um worker de documentos escalável separadamente. Essa abordagem
+mantém as transações simples enquanto isola extração, OCR e indexação das réplicas HTTP. Consulte
+[architecture.md](docs/architecture.md) e as [decisões de arquitetura](docs/adr).
 
-## Screenshots
+## Capturas de Tela
 
-| Employee experience                                       | Administration                                                 |
-| --------------------------------------------------------- | -------------------------------------------------------------- |
-| ![Workflix login](docs/screenshots/01-login.png)          | ![Admin dashboard](docs/screenshots/03-admin-dashboard.png)    |
-| ![Employee home](docs/screenshots/02-employee-home.png)   | ![AI training editor](docs/screenshots/04-ai-editor.png)       |
-| ![Quiz experience](docs/screenshots/05-quiz.png)          | ![Management analytics](docs/screenshots/07-analytics.png)     |
-| ![Learning paths](docs/screenshots/06-learning-paths.png) | ![Certificate experience](docs/screenshots/08-certificate.png) |
+| Experiência do colaborador                                         | Administração                                                        |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| ![Login do Workflix](docs/screenshots/01-login.png)                | ![Dashboard administrativo](docs/screenshots/03-admin-dashboard.png) |
+| ![Home do colaborador](docs/screenshots/02-employee-home.png)      | ![Editor de treinamento com IA](docs/screenshots/04-ai-editor.png)   |
+| ![Experiência do quiz](docs/screenshots/05-quiz.png)               | ![Analytics gerenciais](docs/screenshots/07-analytics.png)           |
+| ![Trilhas de aprendizagem](docs/screenshots/06-learning-paths.png) | ![Experiência do certificado](docs/screenshots/08-certificate.png)   |
 
-## Demo
+## Demonstração
 
-The public portfolio environment is available at:
+O ambiente público de portfólio está disponível em:
 
-- Web application: [workflix.pages.dev](https://workflix.pages.dev)
-- API documentation: [FastAPI Swagger UI](https://p01--backend--5ljdt6tvrrkz.code.run/docs)
-- Liveness: [backend health](https://p01--backend--5ljdt6tvrrkz.code.run/health)
-- Readiness: [backend readiness](https://p01--backend--5ljdt6tvrrkz.code.run/ready)
+- Aplicação web: [workflix.pages.dev](https://workflix.pages.dev)
+- Documentação da API: [Swagger UI do FastAPI](https://p01--backend--5ljdt6tvrrkz.code.run/docs)
+- Liveness: [health do backend](https://p01--backend--5ljdt6tvrrkz.code.run/health)
+- Readiness: [readiness do backend](https://p01--backend--5ljdt6tvrrkz.code.run/ready)
 
-The fictional NovaTech demo accounts share the password `Workflix@2026`:
+As contas demo da empresa fictícia NovaTech compartilham a senha `Workflix@2026`:
 
-| Profile       | Email                    |
+| Perfil        | E-mail                   |
 | ------------- | ------------------------ |
-| Administrator | `admin@workflix.demo`    |
-| Employee      | `employee@workflix.demo` |
+| Administrador | `admin@workflix.demo`    |
+| Colaborador   | `employee@workflix.demo` |
 
-The idempotent seed includes five fictional employees, six published trainings, specific quizzes,
-realistic progress, two learning paths, a certificate, and populated analytics. These credentials
-exist only for the public portfolio demonstration and must never be reused elsewhere.
+O seed idempotente inclui cinco colaboradores fictícios, seis treinamentos publicados, quizzes
+específicos, progresso realista, duas trilhas de aprendizagem, um certificado e analytics
+preenchidos. Essas credenciais existem apenas para a demonstração pública de portfólio e nunca
+devem ser reutilizadas.
 
-## Running Locally
+## Executando Localmente
 
-Prerequisite: Docker Desktop with Docker Compose.
+Pré-requisito: Docker Desktop com Docker Compose.
 
 ```bash
 cp .env.example .env
@@ -144,18 +158,19 @@ Copy-Item .env.example .env
 docker compose up --build
 ```
 
-The backend runs migrations, applies the demo seed, starts the API, and then allows the worker and
-frontend health-gated startup. If port `5173` is already used:
+O backend executa as migrations, aplica o seed demo e inicia a API. Em seguida, o worker e o
+frontend iniciam condicionados aos health checks. Caso a porta `5173` já esteja em uso:
 
 ```powershell
 $env:FRONTEND_PORT = "5174"
 docker compose up --build
 ```
 
-For host-based development, Node.js 22+ and Python 3.13+ are required. Environment details and the
-hardened staging overlay are documented in [docs/deployment.md](docs/deployment.md).
+Para desenvolvimento diretamente na máquina, são necessários Node.js 22+ e Python 3.13+. Os
+detalhes das variáveis de ambiente e do overlay de staging com hardening estão documentados em
+[docs/deployment.md](docs/deployment.md).
 
-## Tests
+## Testes
 
 Backend:
 
@@ -175,13 +190,13 @@ npm run test
 npm run build
 ```
 
-End to end, with the Docker stack running:
+Testes de ponta a ponta com a stack Docker em execução:
 
 ```bash
 npm run test:e2e
 ```
 
-Against the public portfolio environment:
+Contra o ambiente público de portfólio:
 
 ```powershell
 $env:PLAYWRIGHT_BASE_URL = "https://workflix.pages.dev"
@@ -189,51 +204,55 @@ $env:PLAYWRIGHT_API_BASE_URL = "https://p01--backend--5ljdt6tvrrkz.code.run/api/
 npm run test:e2e
 ```
 
-GitHub Actions enforces backend, frontend, Compose, migration-owned startup, and Playwright browser
-journeys on every pull request and push to `main`.
+O GitHub Actions valida backend, frontend, Compose, inicialização controlada pelas migrations e
+jornadas Playwright em cada pull request e push para a branch `main`.
 
-## Security
+## Segurança
 
-- Tenant identity comes from the verified principal, never a client-provided company identifier.
-- AI prompts, tokens, document bodies, and secrets are excluded from structured application logs.
-- `.env` files are ignored; committed examples contain placeholders only.
-- PDFs use private tenant-prefixed object keys and authorization-gated downloads.
-- The portfolio environment uses Redis request limits, private Backblaze B2 storage, and a
-  Northflank secret group; an allowlisted AWS Secrets Manager bootstrap remains supported.
-- AI-generated content requires administrator review before persistence and publication.
+- A identidade do tenant vem do usuário autenticado, nunca de um identificador de empresa enviado
+  pelo cliente.
+- Prompts de IA, tokens, conteúdo de documentos e secrets são excluídos dos logs estruturados da
+  aplicação.
+- Arquivos `.env` são ignorados; os exemplos versionados contêm apenas placeholders.
+- PDFs usam chaves de objetos privadas com prefixo por tenant e downloads protegidos por
+  autorização.
+- O ambiente de portfólio usa rate limiting com Redis, armazenamento privado Backblaze B2 e um
+  grupo de secrets do Northflank; o bootstrap com payload autorizado do AWS Secrets Manager
+  continua disponível.
+- Conteúdos gerados por IA exigem revisão do administrador antes de serem persistidos e publicados.
 
-See [docs/security.md](docs/security.md) for the complete baseline.
+Consulte [docs/security.md](docs/security.md) para conhecer a baseline completa.
 
-## Project Structure
+## Estrutura do Projeto
 
 ```text
 workflix/
 ├── frontend/
-│   └── src/{app,components,features,hooks,pages,services,types,utils}
+│   └── src/{app,components,features,pages,services,styles,types}
 ├── backend/
 │   ├── app/{ai,api,core,db,models,rag,repositories,schemas,services,storage}
 │   ├── migrations/
 │   └── tests/
 ├── tests/e2e/
-├── docker/
-├── docs/
+├── docker/{compose.staging.yml,staging.env.example}
+├── docs/{adr,assets,screenshots,changelog.md,project-status.md}
 ├── .github/workflows/
 ├── docker-compose.yml
-├── docker-compose.staging.yml
-├── PROJECT_STATUS.md
+├── package.json
+├── LICENSE
 └── README.md
 ```
 
 ## Roadmap
 
-The portfolio release is feature-complete. Future product directions, intentionally outside this
-release, are limited to:
+A versão de portfólio está funcionalmente concluída. As direções futuras do produto,
+intencionalmente fora desta versão, estão limitadas a:
 
-- enterprise SSO and directory synchronization;
-- advanced notification and assignment automation;
-- department/position governance and a dedicated manager profile;
-- expanded audit reporting and production deployment options.
+- SSO corporativo e sincronização de diretórios;
+- políticas avançadas de notificações e automação de atribuições;
+- governança por departamento e cargo, com perfil dedicado de gestor;
+- relatórios de auditoria ampliados e novas opções de observabilidade em produção.
 
-## License
+## Licença
 
-Workflix is available under the [MIT License](LICENSE).
+Workflix está disponível sob a [Licença MIT](LICENSE).

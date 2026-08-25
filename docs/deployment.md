@@ -13,7 +13,7 @@ Host ports can be changed with `POSTGRES_PORT`, `BACKEND_PORT`, and `FRONTEND_PO
 
 ## Hardened staging topology
 
-`docker-compose.staging.yml` overlays the local topology with:
+`docker/compose.staging.yml` overlays the local topology with:
 
 - Redis-backed fixed-window limits for login, refresh, and AI generation;
 - a private MinIO bucket exercising the same S3 adapter used with AWS S3 or Cloudflare R2;
@@ -26,7 +26,7 @@ Prepare a private environment file and start both Compose files:
 cp docker/staging.env.example docker/staging.env
 docker compose --env-file docker/staging.env \
   -f docker-compose.yml \
-  -f docker-compose.staging.yml \
+  -f docker/compose.staging.yml \
   up --build -d
 ```
 
