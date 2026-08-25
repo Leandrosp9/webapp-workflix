@@ -201,31 +201,28 @@ export default function TrainingPlayerPage() {
                       title={`Vídeo do treinamento ${training.title}`}
                       loading="lazy"
                       referrerPolicy="strict-origin-when-cross-origin"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                      sandbox="allow-scripts allow-same-origin allow-presentation"
                       allowFullScreen
                     />
                   </div>
                   <div className="video-player-footer">
                     <div>
-                      <span className="section-kicker">Conteúdo demonstrativo</span>
-                      <h2>Assista sem sair do treinamento</h2>
+                      <span className="section-kicker">Reprodução integrada</span>
+                      <h2>Assista dentro do Workflix</h2>
+                      <p>O conteúdo é reproduzido sem redirecionar você para outro site.</p>
                     </div>
-                    <a href={training.video_url ?? "#"} target="_blank" rel="noreferrer">
-                      Abrir no YouTube <ArrowRight size={14} />
-                    </a>
                   </div>
                 </>
               ) : (
                 <>
                   <PlayCircle size={58} />
-                  <h2>Conteúdo em vídeo</h2>
-                  {training.video_url ? (
-                    <a href={training.video_url} target="_blank" rel="noreferrer">
-                      Abrir vídeo em nova aba
-                    </a>
-                  ) : (
-                    <p>O material de apoio deste treinamento está disponível abaixo.</p>
-                  )}
+                  <h2>Vídeo indisponível para reprodução</h2>
+                  <p>
+                    {training.video_url
+                      ? "Este endereço não permite reprodução segura dentro do Workflix."
+                      : "O material de apoio deste treinamento está disponível abaixo."}
+                  </p>
                 </>
               )}
             </div>

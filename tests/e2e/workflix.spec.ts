@@ -107,14 +107,22 @@ test("colaborador assiste a um vídeo demonstrativo no treinamento", async ({
     .first()
     .click();
 
+  const video = page.getByTitle(
+    "Vídeo do treinamento LGPD na prática: dados com responsabilidade",
+  );
+  await expect(video).toBeVisible();
+  await expect(video).toHaveAttribute(
+    "src",
+    "https://www.youtube-nocookie.com/embed/jVuQjczLvRI?rel=0",
+  );
+  await expect(video).toHaveAttribute(
+    "sandbox",
+    "allow-scripts allow-same-origin allow-presentation",
+  );
   await expect(
-    page.getByTitle(
-      "Vídeo do treinamento LGPD na prática: dados com responsabilidade",
-    ),
+    page.getByRole("heading", { name: "Assista dentro do Workflix" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Abrir no YouTube" }),
-  ).toHaveAttribute("href", "https://www.youtube.com/watch?v=jVuQjczLvRI");
+  await expect(page.locator(".video-player a")).toHaveCount(0);
 });
 
 test("colaborador retoma o treinamento na última posição de leitura", async ({

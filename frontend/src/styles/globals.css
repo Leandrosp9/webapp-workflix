@@ -1824,12 +1824,10 @@ label {
   margin-top: 4px;
 }
 
-.video-player-footer a {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 7px;
-  color: #c8d0dc;
+.video-player-footer p {
+  margin-top: 6px;
+  color: var(--wf-muted);
+  font-size: 0.72rem;
 }
 
 .pdf-player p {
