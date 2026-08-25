@@ -2,6 +2,7 @@ import { ArrowUpRight, Check, Clock3, FileText, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import type { Training } from "../types/api";
+import { publicationStatusLabel, trainingTypeLabel } from "../utils/labels";
 
 interface TrainingCardProps {
   training: Training;
@@ -25,7 +26,7 @@ export function TrainingCard({ training, admin = false }: TrainingCardProps) {
       >
         <span className={`type-chip type-${training.type.toLowerCase()}`}>
           {training.type === "VIDEO" ? <Play size={11} /> : <FileText size={11} />}
-          {training.type}
+          {trainingTypeLabel(training.type)}
         </span>
         {progress === 100 && (
           <span className="complete-chip">
@@ -39,7 +40,9 @@ export function TrainingCard({ training, admin = false }: TrainingCardProps) {
             <Clock3 size={13} /> {training.estimated_minutes} min
           </span>
           {admin && (
-            <span className={`status-${training.status.toLowerCase()}`}>{training.status}</span>
+            <span className={`status-${training.status.toLowerCase()}`}>
+              {publicationStatusLabel(training.status)}
+            </span>
           )}
         </div>
         <h3>{training.title}</h3>

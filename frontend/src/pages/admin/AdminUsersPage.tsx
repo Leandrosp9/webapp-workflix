@@ -1,12 +1,22 @@
-import { CheckCircle2, Pencil, Plus, UserCheck, UserRoundPlus, Users, UserX } from "lucide-react";
+import {
+  CheckCircle2,
+  Pencil,
+  Plus,
+  ShieldCheck,
+  UserCheck,
+  UserRoundPlus,
+  Users,
+  UserX,
+} from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { ErrorState, LoadingState } from "../../components/PageState";
 import { ProfileImagePicker } from "../../components/ProfileImagePicker";
 import { UserAvatar } from "../../components/UserAvatar";
+import { useAuth } from "../../features/auth/AuthProvider";
 import { ApiError, api } from "../../services/http";
-import type { User, UserSummary } from "../../types/api";
+import type { Role, User, UserSummary } from "../../types/api";
 
 type UserDialog =
   | { mode: "create" }
@@ -19,6 +29,7 @@ interface UserPatch {
   email?: string;
   cpf?: string;
   is_active?: boolean;
+  role?: Role;
 }
 
 function formatCpf(value: string) {
@@ -32,14 +43,21 @@ function formatCpf(value: string) {
 
 export default function AdminUsersPage() {
   const client = useQueryClient();
+  const { user: currentUser } = useAuth();
   const [dialog, setDialog] = useState<UserDialog>(null);
   const [createForm, setCreateForm] = useState({
     full_name: "",
     email: "",
     cpf: "",
     password: "Workflix@2026",
+    role: "EMPLOYEE" as Role,
   });
-  const [editForm, setEditForm] = useState({ full_name: "", email: "", cpf: "" });
+  const [editForm, setEditForm] = useState({
+    full_name: "",
+    email: "",
+    cpf: "",
+    role: "EMPLOYEE" as Role,
+  });
   const [createAvatar, setCreateAvatar] = useState<File | null>(null);
   const [editAvatar, setEditAvatar] = useState<File | null>(null);
   const [error, setError] = useState("");
@@ -67,12 +85,18 @@ export default function AdminUsersPage() {
     },
     onSuccess: ({ user, avatarSaved }) => {
       setDialog(null);
-      setCreateForm({ full_name: "", email: "", cpf: "", password: "Workflix@2026" });
+      setCreateForm({
+        full_name: "",
+        email: "",
+        cpf: "",
+        password: "Workflix@2026",
+        role: "EMPLOYEE",
+      });
       setCreateAvatar(null);
       setFeedback(
         avatarSaved
-          ? "Colaborador adicionado e acesso liberado."
-          : "Colaborador adicionado, mas a foto não pôde ser enviada. Edite o cadastro para tentar novamente.",
+          ? "Usuário adicionado e acesso liberado."
+          : "Usuário adicionado, mas a foto não pôde ser enviada. Edite o cadastro para tentar novamente.",
       );
       void client.invalidateQueries({ queryKey: ["users"] });
       void client.invalidateQueries({ queryKey: ["user-avatar", user.id] });
@@ -135,26 +159,33 @@ export default function AdminUsersPage() {
     setError("");
     setFeedback("");
     setEditAvatar(null);
-    setEditForm({ full_name: user.full_name, email: user.email, cpf: formatCpf(user.cpf ?? "") });
+    setEditForm({
+      full_name: user.full_name,
+      email: user.email,
+      cpf: formatCpf(user.cpf ?? ""),
+      role: user.role,
+    });
     setDialog({ mode: "edit", user });
   }
 
   if (query.isLoading) return <LoadingState />;
   if (!query.data) return <ErrorState retry={() => void query.refetch()} />;
-  const average = query.data.length
+  const employees = query.data.filter((user) => user.role === "EMPLOYEE");
+  const average = employees.length
     ? Math.round(
-        query.data.reduce((total, user) => total + user.completion_percent, 0) / query.data.length,
+        employees.reduce((total, user) => total + user.completion_percent, 0) / employees.length,
       )
     : 0;
   const activeUsers = query.data.filter((user) => user.is_active).length;
+  const administrators = query.data.filter((user) => user.role === "ADMIN").length;
 
   return (
     <div>
       <div className="page-heading admin-heading">
         <div>
           <span className="section-kicker">Equipe NovaTech</span>
-          <h1>Colaboradores</h1>
-          <p>Gerencie acessos e acompanhe o desenvolvimento individual.</p>
+          <h1>Usuários e acessos</h1>
+          <p>Gerencie administradores, colaboradores e o desenvolvimento da equipe.</p>
         </div>
         <button
           className="button primary"
@@ -166,7 +197,7 @@ export default function AdminUsersPage() {
             setDialog({ mode: "create" });
           }}
         >
-          <Plus size={16} /> Novo colaborador
+          <Plus size={16} /> Novo usuário
         </button>
       </div>
       {feedback && (
@@ -176,10 +207,13 @@ export default function AdminUsersPage() {
       )}
       <div className="people-summary">
         <span>
-          <Users /> <strong>{query.data.length}</strong> colaboradores
+          <Users /> <strong>{query.data.length}</strong> usuários
         </span>
         <span>
           <UserCheck /> <strong>{activeUsers}</strong> acessos ativos
+        </span>
+        <span>
+          <ShieldCheck /> <strong>{administrators}</strong> administradores
         </span>
         <span>
           <CheckCircle2 /> <strong>{average}%</strong> conclusão média
@@ -189,7 +223,8 @@ export default function AdminUsersPage() {
         <table className="people-table">
           <thead>
             <tr>
-              <th>Colaborador</th>
+              <th>Usuário</th>
+              <th>Perfil</th>
               <th>Status</th>
               <th>Atribuídos</th>
               <th>Concluídos</th>
@@ -217,27 +252,36 @@ export default function AdminUsersPage() {
                   </div>
                 </td>
                 <td>
+                  <span className={`role-badge ${user.role.toLowerCase()}`}>
+                    {user.role === "ADMIN" ? "Administrador" : "Colaborador"}
+                  </span>
+                </td>
+                <td>
                   <span className={`people-status ${user.is_active ? "active" : "inactive"}`}>
                     {user.is_active ? "Ativo" : "Inativo"}
                   </span>
                 </td>
-                <td>{user.assigned}</td>
-                <td>{user.completed}</td>
-                <td>{user.pending}</td>
+                <td>{user.role === "EMPLOYEE" ? user.assigned : "—"}</td>
+                <td>{user.role === "EMPLOYEE" ? user.completed : "—"}</td>
+                <td>{user.role === "EMPLOYEE" ? user.pending : "—"}</td>
                 <td>
-                  <div className="table-progress">
-                    <span>
-                      <i style={{ width: `${user.completion_percent}%` }} />
-                    </span>
-                    <strong>{user.completion_percent}%</strong>
-                  </div>
+                  {user.role === "EMPLOYEE" ? (
+                    <div className="table-progress">
+                      <span>
+                        <i style={{ width: `${user.completion_percent}%` }} />
+                      </span>
+                      <strong>{user.completion_percent}%</strong>
+                    </div>
+                  ) : (
+                    "—"
+                  )}
                 </td>
                 <td>
                   <div className="people-actions">
                     <button
                       type="button"
                       aria-label={`Editar ${user.full_name}`}
-                      title="Editar colaborador"
+                      title="Editar usuário"
                       onClick={() => openEdit(user)}
                     >
                       <Pencil size={15} />
@@ -245,7 +289,14 @@ export default function AdminUsersPage() {
                     <button
                       type="button"
                       aria-label={`${user.is_active ? "Inativar" : "Ativar"} ${user.full_name}`}
-                      title={user.is_active ? "Inativar acesso" : "Ativar acesso"}
+                      title={
+                        user.id === currentUser?.id
+                          ? "Seu próprio acesso não pode ser inativado nesta tela"
+                          : user.is_active
+                            ? "Inativar acesso"
+                            : "Ativar acesso"
+                      }
+                      disabled={user.id === currentUser?.id}
                       onClick={() => {
                         setError("");
                         setFeedback("");
@@ -276,7 +327,7 @@ export default function AdminUsersPage() {
               <UserRoundPlus />
             </div>
             <span className="section-kicker">Novo acesso</span>
-            <h2>Adicionar colaborador</h2>
+            <h2>Adicionar usuário</h2>
             <ProfileImagePicker
               fullName={createForm.full_name}
               file={createAvatar}
@@ -316,6 +367,18 @@ export default function AdminUsersPage() {
               />
             </label>
             <label>
+              Perfil de acesso
+              <select
+                value={createForm.role}
+                onChange={(event) =>
+                  setCreateForm({ ...createForm, role: event.target.value as Role })
+                }
+              >
+                <option value="EMPLOYEE">Colaborador</option>
+                <option value="ADMIN">Administrador</option>
+              </select>
+            </label>
+            <label>
               Senha inicial
               <input
                 type="text"
@@ -352,7 +415,7 @@ export default function AdminUsersPage() {
               <Pencil />
             </div>
             <span className="section-kicker">Editar cadastro</span>
-            <h2>Dados do colaborador</h2>
+            <h2>Dados do usuário</h2>
             <ProfileImagePicker
               fullName={editForm.full_name}
               file={editAvatar}
@@ -392,6 +455,20 @@ export default function AdminUsersPage() {
                 required
               />
             </label>
+            <label>
+              Perfil de acesso
+              <select
+                value={editForm.role}
+                disabled={dialog.user.id === currentUser?.id}
+                onChange={(event) => setEditForm({ ...editForm, role: event.target.value as Role })}
+              >
+                <option value="EMPLOYEE">Colaborador</option>
+                <option value="ADMIN">Administrador</option>
+              </select>
+              {dialog.user.id === currentUser?.id && (
+                <small className="field-hint">Seu próprio perfil é protegido nesta tela.</small>
+              )}
+            </label>
             {error && <div className="form-error">{error}</div>}
             <div className="modal-actions">
               <button className="button ghost" type="button" onClick={() => setDialog(null)}>
@@ -411,7 +488,7 @@ export default function AdminUsersPage() {
             <div className="modal-icon">{dialog.user.is_active ? <UserX /> : <UserCheck />}</div>
             <span className="section-kicker">Controle de acesso</span>
             <h2 id="status-title">
-              {dialog.user.is_active ? "Inativar colaborador?" : "Ativar colaborador?"}
+              {dialog.user.is_active ? "Inativar usuário?" : "Ativar usuário?"}
             </h2>
             <p className="modal-copy">
               {dialog.user.is_active

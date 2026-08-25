@@ -44,6 +44,9 @@ async function login(page: Page, email: string) {
     email.startsWith("admin@") ? /\/admin$/ : /\/app$/,
     { timeout: 15_000 },
   );
+  await expect(page.locator("main.page-content")).toBeVisible({
+    timeout: 30_000,
+  });
 }
 
 async function logout(page: Page) {
@@ -97,8 +100,10 @@ test("colaborador conclui o fluxo de aprendizagem e avaliação", async ({
   await expect(
     page.getByRole("heading", { name: "Ranking da equipe" }),
   ).toBeVisible();
+  await page.goto("/app/catalog");
   await page
-    .getByRole("link", { name: /Começar agora|Continuar/ })
+    .getByRole("link")
+    .filter({ hasText: "Segurança da Informação: atitudes que protegem" })
     .first()
     .click();
 
@@ -237,7 +242,7 @@ test("colaborador retoma o treinamento na última posição de leitura", async (
     .toBeGreaterThan(savedPosition - 30);
 });
 
-test("administrador consulta indicadores, treinamentos e colaboradores", async ({
+test("administrador consulta indicadores, treinamentos e usuários", async ({
   page,
 }) => {
   await login(page, "admin@workflix.demo");
@@ -246,6 +251,8 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
     page.getByRole("heading", { name: "Visão geral" }),
   ).toBeVisible();
   await expect(page.getByText("Treinamentos recentes")).toBeVisible();
+  await expect(page.locator(".recent-card")).not.toContainText("ARTICLE");
+  await expect(page.locator(".recent-card")).not.toContainText("PUBLISHED");
 
   const accountMenu = page.getByRole("button", {
     name: "Abrir menu da conta de Marina Costa",
@@ -261,10 +268,23 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
   await expect(
     page.getByRole("heading", { name: "Treinamentos" }),
   ).toBeVisible();
-
-  await page.getByRole("link", { name: "Colaboradores", exact: true }).click();
+  const firstTraining = page.locator(".training-card").first();
   await expect(
-    page.getByRole("heading", { name: "Colaboradores" }),
+    firstTraining.getByText(/Artigo|Vídeo|PDF/, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    firstTraining.getByText(/Publicado|Rascunho/, { exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("link", { name: "Usuários", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Usuários e acessos" }),
+  ).toBeVisible();
+  const marina = page
+    .locator(".people-table tbody tr")
+    .filter({ hasText: "admin@workflix.demo" });
+  await expect(
+    marina.getByText("Administrador", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText("employee@workflix.demo")).toBeVisible();
 
@@ -273,23 +293,23 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
     .locator(".people-table tbody tr")
     .filter({ hasText: validationEmail });
   if ((await validationEmployee.count()) === 0) {
-    await page.getByRole("button", { name: "Novo colaborador" }).click();
+    await page.getByRole("button", { name: "Novo usuário" }).click();
     await page.getByLabel("Nome completo").fill("Rafael Mendes");
     await page.getByLabel("CPF").fill("900.000.009-22");
     await page.getByLabel("E-mail corporativo").fill(validationEmail);
     await page.getByRole("button", { name: "Criar acesso" }).click();
     await expect(
-      page.getByText("Colaborador adicionado e acesso liberado."),
+      page.getByText("Usuário adicionado e acesso liberado."),
     ).toBeVisible();
   }
 
-  await validationEmployee.getByTitle("Editar colaborador").click();
+  await validationEmployee.getByTitle("Editar usuário").click();
   await page.getByLabel("Nome completo").fill("Rafael Mendes da Silva");
   const cpf = page.getByLabel("CPF");
   if ((await cpf.inputValue()) === "") {
     await cpf.fill("900.000.009-22");
   }
-  await page.getByLabel("Foto do colaborador").setInputFiles({
+  await page.getByLabel("Foto do usuário").setInputFiles({
     name: "rafael.png",
     mimeType: "image/png",
     buffer: avatarPng,
@@ -351,11 +371,12 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
 test("fluxo demo cria conteúdo com IA, publica, atribui e confirma conclusão", async ({
   page,
 }) => {
+  const trainingTitle = `Proteção de dados em projetos digitais ${Date.now()}`;
   await page.route("**/api/v1/ai/generate-training", async (route) => {
     await route.fulfill({
       json: {
         draft: {
-          title: "Proteção de dados em projetos digitais",
+          title: trainingTitle,
           description:
             "Decisões práticas para reduzir riscos no uso de dados de clientes.",
           content:
@@ -423,7 +444,7 @@ test("fluxo demo cria conteúdo com IA, publica, atribui e confirma conclusão",
 
   try {
     await page.getByRole("link", { name: "Novo treinamento" }).click();
-    await page.getByLabel("Título").fill("Proteção de dados em projetos");
+    await page.getByLabel("Título").fill(trainingTitle);
     await page
       .getByLabel("Descrição")
       .fill(
@@ -464,7 +485,7 @@ test("fluxo demo cria conteúdo com IA, publica, atribui e confirma conclusão",
     await expect(
       page
         .getByRole("heading", {
-          name: "Proteção de dados em projetos digitais",
+          name: trainingTitle,
         })
         .first(),
     ).toBeVisible();
@@ -483,7 +504,7 @@ test("fluxo demo cria conteúdo com IA, publica, atribui e confirma conclusão",
     await expect(
       page
         .getByRole("heading", {
-          name: "Proteção de dados em projetos digitais",
+          name: trainingTitle,
         })
         .first(),
     ).toBeVisible();
@@ -498,7 +519,7 @@ test("fluxo demo cria conteúdo com IA, publica, atribui e confirma conclusão",
     await login(page, "admin@workflix.demo");
     await page.goto("/admin/reports");
     const trainingRow = page.getByRole("row").filter({
-      hasText: "Proteção de dados em projetos digitais",
+      hasText: trainingTitle,
     });
     await expect(trainingRow).toContainText("100%");
   } finally {

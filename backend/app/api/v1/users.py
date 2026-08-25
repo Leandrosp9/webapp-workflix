@@ -4,36 +4,41 @@ from uuid import UUID
 from fastapi import APIRouter, File, Response, UploadFile, status
 
 from app.api.dependencies import AdminUser, CurrentUser, SessionDependency
+from app.models import Role
 from app.schemas.users import UserCreate, UserResponse, UserSummary, UserUpdate
 from app.services.users import UserService
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-@router.get("", response_model=list[UserSummary], summary="List company employees")
-async def list_users(admin: AdminUser, session: SessionDependency) -> list[UserSummary]:
-    return await UserService(session).list_employees(company_id=admin.company_id)
+@router.get("", response_model=list[UserSummary], summary="List company users")
+async def list_users(
+    admin: AdminUser,
+    session: SessionDependency,
+    role: Role | None = None,
+) -> list[UserSummary]:
+    return await UserService(session).list_users(company_id=admin.company_id, role=role)
 
 
 @router.post(
     "",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Create a company employee",
+    summary="Create a company user",
 )
 async def create_user(
     payload: UserCreate,
     admin: AdminUser,
     session: SessionDependency,
 ) -> UserResponse:
-    user = await UserService(session).create_employee(company_id=admin.company_id, payload=payload)
+    user = await UserService(session).create_user(company_id=admin.company_id, payload=payload)
     return UserResponse.model_validate(user)
 
 
 @router.patch(
     "/{user_id}",
     response_model=UserResponse,
-    summary="Update a company employee",
+    summary="Update a company user",
 )
 async def update_user(
     user_id: UUID,
@@ -41,7 +46,7 @@ async def update_user(
     admin: AdminUser,
     session: SessionDependency,
 ) -> UserResponse:
-    user = await UserService(session).update_employee(
+    user = await UserService(session).update_user(
         company_id=admin.company_id,
         user_id=user_id,
         payload=payload,
@@ -52,7 +57,7 @@ async def update_user(
 @router.post(
     "/{user_id}/avatar",
     response_model=UserResponse,
-    summary="Upload an employee profile image",
+    summary="Upload a user profile image",
 )
 async def upload_user_avatar(
     user_id: UUID,
@@ -88,7 +93,7 @@ async def get_user_avatar(
 @router.delete(
     "/{user_id}/avatar",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Remove an employee profile image",
+    summary="Remove a user profile image",
 )
 async def delete_user_avatar(
     user_id: UUID,

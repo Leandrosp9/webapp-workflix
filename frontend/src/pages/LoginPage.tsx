@@ -2,6 +2,7 @@ import { ArrowRight, BookOpenCheck, CheckCircle2, ShieldCheck, Sparkles } from "
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
+import { AppLoadingScreen } from "../components/AppLoadingScreen";
 import { Brand } from "../components/Brand";
 import { useAuth } from "../features/auth/AuthProvider";
 import { ApiError } from "../services/http";
@@ -13,17 +14,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState("Workflix@2026");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
 
+  if (transitioning) return <AppLoadingScreen label="Abrindo seu espaço Workflix…" />;
   if (user) return <Navigate to={user.role === "ADMIN" ? "/admin" : "/app"} replace />;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
     setSubmitting(true);
+    setTransitioning(true);
     try {
       const current = await login(email, password);
       void navigate(current.role === "ADMIN" ? "/admin" : "/app", { replace: true });
     } catch (reason) {
+      setTransitioning(false);
       setError(reason instanceof ApiError ? reason.message : "Não foi possível entrar.");
     } finally {
       setSubmitting(false);

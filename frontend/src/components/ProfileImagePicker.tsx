@@ -56,7 +56,7 @@ export function ProfileImagePicker({
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            aria-label="Foto do colaborador"
+            aria-label="Foto do usuário"
             onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
           />
         </label>
