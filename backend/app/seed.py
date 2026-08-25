@@ -73,7 +73,7 @@ imediatamente pelo canal oficial de segurança.
         "description": "Entenda como tratar dados pessoais de forma consciente em situações reais.",
         "type": TrainingType.VIDEO,
         "thumbnail_url": "/thumbnails/privacy.svg",
-        "video_url": None,
+        "video_url": "https://www.youtube.com/watch?v=jVuQjczLvRI",
         "estimated_minutes": 14,
         "content": """# Dados pessoais merecem cuidado
 
@@ -109,7 +109,7 @@ feedbacks, descreva comportamentos observáveis e o impacto gerado.
         ),
         "type": TrainingType.VIDEO,
         "thumbnail_url": "/thumbnails/leadership.svg",
-        "video_url": None,
+        "video_url": "https://www.youtube.com/watch?v=Vnc9CFhfyIM",
         "estimated_minutes": 22,
         "content": """# Liderar é criar contexto
 
