@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import { ErrorState, LoadingState } from "../components/PageState";
 import { api } from "../services/http";
 import type { LearningPath } from "../types/api";
+import { trainingTypeLabel } from "../utils/labels";
 
 export default function LearningPathDetailPage() {
   const { pathId } = useParams();
@@ -42,7 +43,7 @@ export default function LearningPathDetailPage() {
               </div>
               <div className="path-step-copy">
                 <span>
-                  {item.required ? "Obrigatório" : "Complementar"} · {item.type}
+                  {item.required ? "Obrigatório" : "Complementar"} · {trainingTypeLabel(item.type)}
                 </span>
                 <h2>{item.title}</h2>
                 <p>{item.description}</p>

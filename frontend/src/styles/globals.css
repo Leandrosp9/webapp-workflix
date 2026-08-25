@@ -2552,6 +2552,24 @@ label {
   color: #d88b93;
   background: rgba(214, 102, 113, 0.09);
 }
+.role-badge {
+  display: inline-flex;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 99px;
+  font-size: 0.56rem;
+  font-weight: 750;
+}
+.role-badge.admin {
+  color: #c9b8ff;
+  border-color: rgba(139, 114, 255, 0.22);
+  background: rgba(139, 114, 255, 0.1);
+}
+.role-badge.employee {
+  color: #79c8f5;
+  border-color: rgba(51, 174, 238, 0.2);
+  background: rgba(51, 174, 238, 0.08);
+}
 .people-actions {
   display: flex;
   min-width: 76px;
@@ -2573,6 +2591,33 @@ label {
   border-color: rgba(139, 114, 255, 0.3);
   color: #f1efff;
   background: rgba(139, 114, 255, 0.09);
+}
+.people-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+select,
+select option {
+  color: #e4e7ec;
+  background-color: #111722;
+}
+
+select {
+  color-scheme: dark;
+}
+
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 5px;
+  color: #788396;
+  font-size: 0.58rem;
+  font-weight: 500;
 }
 .table-progress {
   display: flex;

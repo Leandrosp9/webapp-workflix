@@ -1,8 +1,8 @@
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 
+import { AppLoadingScreen } from "../components/AppLoadingScreen";
 import { AppShell } from "../components/AppShell";
-import { Brand } from "../components/Brand";
 import { useAuth } from "../features/auth/AuthProvider";
 import type { Role } from "../types/api";
 import { AppProviders } from "./providers";
@@ -23,24 +23,9 @@ const AdminUsersPage = lazy(() => import("../pages/admin/AdminUsersPage"));
 const AdminLearningPathsPage = lazy(() => import("../pages/admin/AdminLearningPathsPage"));
 const AdminReportsPage = lazy(() => import("../pages/admin/AdminReportsPage"));
 
-function RouteFallback() {
-  return (
-    <main className="route-fallback" aria-busy="true" aria-label="Carregando Workflix">
-      <div className="route-loading-brand">
-        <span className="route-loading-orbit" aria-hidden="true" />
-        <Brand splash />
-      </div>
-      <strong>Preparando seu espaço…</strong>
-      <span className="route-loading-bar" aria-hidden="true">
-        <i />
-      </span>
-    </main>
-  );
-}
-
 function Protected({ role }: { role: Role }) {
   const { user, loading } = useAuth();
-  if (loading) return <RouteFallback />;
+  if (loading) return <AppLoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== role) {
     return <Navigate to={user.role === "ADMIN" ? "/admin" : "/app"} replace />;
@@ -58,7 +43,7 @@ function Shell() {
 
 function ApplicationRoutes() {
   return (
-    <Suspense fallback={<RouteFallback />}>
+    <Suspense fallback={<AppLoadingScreen />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/verify/:code" element={<VerifyCertificatePage />} />

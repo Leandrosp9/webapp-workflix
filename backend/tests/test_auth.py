@@ -83,8 +83,8 @@ def test_employee_cannot_manage_users(api: ApiContext) -> None:
     assert response.json()["error"]["code"] == "FORBIDDEN"
 
 
-def test_admin_only_lists_own_company_employees(api: ApiContext) -> None:
-    company_a, _ = asyncio.run(
+def test_admin_only_lists_own_company_users(api: ApiContext) -> None:
+    company_a, admin_a = asyncio.run(
         create_company_user(
             api.sessions,
             company_name="Company A",
@@ -114,12 +114,60 @@ def test_admin_only_lists_own_company_employees(api: ApiContext) -> None:
         },
     )
     listed = api.client.get("/api/v1/users", headers=headers)
+    employees = api.client.get("/api/v1/users?role=EMPLOYEE", headers=headers)
 
     assert created.status_code == 201
     assert created.json()["company_id"] == str(company_a.id)
     assert created.json()["cpf"] == "90000000680"
+    assert created.json()["role"] == "EMPLOYEE"
     assert listed.status_code == 200
-    assert [user["email"] for user in listed.json()] == ["employee-a@example.com"]
+    assert {user["email"] for user in listed.json()} == {
+        admin_a.email,
+        "employee-a@example.com",
+    }
+    assert employees.status_code == 200
+    assert [user["email"] for user in employees.json()] == ["employee-a@example.com"]
+
+
+def test_admin_creates_roles_and_preserves_last_active_admin(api: ApiContext) -> None:
+    _company, admin = asyncio.run(
+        create_company_user(
+            api.sessions,
+            company_name="Access Company",
+            email="admin@access.example.com",
+            role=Role.ADMIN,
+        )
+    )
+    headers = {"Authorization": f"Bearer {login(api.client, admin.email)['access_token']}"}
+
+    blocked = api.client.patch(
+        f"/api/v1/users/{admin.id}",
+        headers=headers,
+        json={"role": "EMPLOYEE"},
+    )
+    created_admin = api.client.post(
+        "/api/v1/users",
+        headers=headers,
+        json={
+            "email": "second.admin@access.example.com",
+            "full_name": "Second Admin",
+            "cpf": "900.000.011-47",
+            "password": "StrongEmployee@2026",
+            "role": "ADMIN",
+        },
+    )
+    demoted = api.client.patch(
+        f"/api/v1/users/{admin.id}",
+        headers=headers,
+        json={"role": "EMPLOYEE"},
+    )
+
+    assert blocked.status_code == 409
+    assert blocked.json()["error"]["code"] == "LAST_ACTIVE_ADMIN"
+    assert created_admin.status_code == 201
+    assert created_admin.json()["role"] == "ADMIN"
+    assert demoted.status_code == 200
+    assert demoted.json()["role"] == "EMPLOYEE"
 
 
 def test_admin_edits_and_deactivates_own_company_employee(api: ApiContext) -> None:

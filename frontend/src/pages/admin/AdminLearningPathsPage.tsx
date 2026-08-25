@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorState, LoadingState } from "../../components/PageState";
 import { ApiError, api } from "../../services/http";
 import type { LearningPath, Training, UserSummary } from "../../types/api";
+import { publicationStatusLabel } from "../../utils/labels";
 
 interface DraftItem {
   training_id: string;
@@ -31,8 +32,8 @@ export default function AdminLearningPathsPage() {
     queryFn: () => api<Training[]>("/trainings"),
   });
   const users = useQuery({
-    queryKey: ["users"],
-    queryFn: () => api<UserSummary[]>("/users"),
+    queryKey: ["users", "employees"],
+    queryFn: () => api<UserSummary[]>("/users?role=EMPLOYEE"),
   });
   const selected = useMemo(
     () => paths.data?.find((path) => path.id === selectedId) ?? null,
@@ -192,7 +193,9 @@ export default function AdminLearningPathsPage() {
                   {path.items.length} conteúdos · {path.assignment_count} atribuídos
                 </small>
               </span>
-              <i className={`status-badge ${path.status.toLowerCase()}`}>{path.status}</i>
+              <i className={`status-badge ${path.status.toLowerCase()}`}>
+                {publicationStatusLabel(path.status)}
+              </i>
             </button>
           ))}
         </aside>

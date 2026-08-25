@@ -31,7 +31,7 @@ const adminNavigation = [
   { to: "/admin", label: "Visão geral", icon: BarChart3 },
   { to: "/admin/trainings", label: "Treinamentos", icon: BookOpen },
   { to: "/admin/paths", label: "Trilhas", icon: Route },
-  { to: "/admin/users", label: "Colaboradores", icon: Users },
+  { to: "/admin/users", label: "Usuários", icon: Users },
   { to: "/admin/reports", label: "Relatórios", icon: FileText },
 ];
 

@@ -21,6 +21,7 @@ import type {
   RagAnswer,
   Training,
 } from "../types/api";
+import { trainingTypeLabel } from "../utils/labels";
 
 function youtubeEmbedUrl(videoUrl: string | null) {
   if (!videoUrl) return null;
@@ -206,7 +207,9 @@ export default function TrainingPlayerPage() {
       <div className="player-layout">
         <article ref={contentRootRef} className="player-content">
           <div className="player-heading">
-            <span className={`type-chip type-${training.type.toLowerCase()}`}>{training.type}</span>
+            <span className={`type-chip type-${training.type.toLowerCase()}`}>
+              {trainingTypeLabel(training.type)}
+            </span>
             <h1>{training.title}</h1>
             <p>{training.description}</p>
             <div>

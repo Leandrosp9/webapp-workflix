@@ -24,6 +24,7 @@ class UserCreate(BaseModel):
     full_name: str = Field(min_length=2, max_length=140)
     cpf: str
     password: str = Field(min_length=8, max_length=128)
+    role: Role = Role.EMPLOYEE
 
     @field_validator("cpf")
     @classmethod
@@ -36,6 +37,7 @@ class UserUpdate(BaseModel):
     full_name: str | None = Field(default=None, min_length=2, max_length=140)
     cpf: str | None = None
     is_active: bool | None = None
+    role: Role | None = None
 
     @field_validator("cpf")
     @classmethod

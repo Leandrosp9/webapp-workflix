@@ -62,23 +62,22 @@ class UserService:
                 status_code=415,
             ) from exc
 
-    async def _employee(self, *, company_id, user_id) -> User:
+    async def _company_user(self, *, company_id, user_id) -> User:
         user = await self._session.scalar(
             select(User).where(
                 User.id == user_id,
                 User.company_id == company_id,
-                User.role == Role.EMPLOYEE,
             )
         )
         if user is None:
             raise AppError(
                 code="USER_NOT_FOUND",
-                message="The employee was not found.",
+                message="The user was not found.",
                 status_code=404,
             )
         return user
 
-    async def create_employee(self, *, company_id, payload: UserCreate) -> User:
+    async def create_user(self, *, company_id, payload: UserCreate) -> User:
         email = str(payload.email).lower()
         if await self._session.scalar(select(User.id).where(User.email == email)):
             raise AppError(
@@ -100,14 +99,17 @@ class UserService:
             full_name=payload.full_name.strip(),
             cpf=payload.cpf,
             password_hash=hash_password(payload.password),
-            role=Role.EMPLOYEE,
+            role=payload.role,
         )
         self._session.add(user)
         await self._session.commit()
         await self._session.refresh(user)
         return user
 
-    async def list_employees(self, *, company_id) -> list[UserSummary]:
+    async def list_users(self, *, company_id, role: Role | None = None) -> list[UserSummary]:
+        filters = [User.company_id == company_id]
+        if role is not None:
+            filters.append(User.role == role)
         rows = (
             await self._session.execute(
                 select(
@@ -126,7 +128,7 @@ class UserService:
                     UserProgress,
                     (UserProgress.user_id == User.id) & (UserProgress.company_id == company_id),
                 )
-                .where(User.company_id == company_id, User.role == Role.EMPLOYEE)
+                .where(*filters)
                 .group_by(User.id)
                 .order_by(User.full_name)
             )
@@ -148,8 +150,29 @@ class UserService:
             )
         return result
 
-    async def update_employee(self, *, company_id, user_id, payload: UserUpdate) -> User:
-        user = await self._employee(company_id=company_id, user_id=user_id)
+    async def update_user(self, *, company_id, user_id, payload: UserUpdate) -> User:
+        user = await self._company_user(company_id=company_id, user_id=user_id)
+
+        removes_active_admin = (
+            user.role == Role.ADMIN
+            and user.is_active
+            and (payload.role == Role.EMPLOYEE or payload.is_active is False)
+        )
+        if removes_active_admin:
+            other_active_admins = await self._session.scalar(
+                select(func.count(User.id)).where(
+                    User.company_id == company_id,
+                    User.role == Role.ADMIN,
+                    User.is_active.is_(True),
+                    User.id != user.id,
+                )
+            )
+            if not other_active_admins:
+                raise AppError(
+                    code="LAST_ACTIVE_ADMIN",
+                    message="The company must keep at least one active administrator.",
+                    status_code=409,
+                )
 
         if payload.email is not None:
             email = str(payload.email).lower()
@@ -182,13 +205,15 @@ class UserService:
             user.cpf = payload.cpf
         if payload.is_active is not None:
             user.is_active = payload.is_active
+        if payload.role is not None:
+            user.role = payload.role
 
         await self._session.commit()
         await self._session.refresh(user)
         return user
 
     async def upload_avatar(self, *, company_id, user_id, upload: UploadFile) -> User:
-        user = await self._employee(company_id=company_id, user_id=user_id)
+        user = await self._company_user(company_id=company_id, user_id=user_id)
         if upload.content_type not in ALLOWED_AVATAR_TYPES:
             raise AppError(
                 code="INVALID_AVATAR",
@@ -260,7 +285,7 @@ class UserService:
             ) from exc
 
     async def delete_avatar(self, *, company_id, user_id) -> User:
-        user = await self._employee(company_id=company_id, user_id=user_id)
+        user = await self._company_user(company_id=company_id, user_id=user_id)
         object_key = user.avatar_object_key
         user.avatar_object_key = None
         user.avatar_content_type = None

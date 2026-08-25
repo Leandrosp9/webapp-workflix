@@ -8,6 +8,7 @@ import { TrainingCard } from "../components/TrainingCard";
 import { useAuth } from "../features/auth/AuthProvider";
 import { api } from "../services/http";
 import type { EmployeeHome } from "../types/api";
+import { trainingTypeLabel } from "../utils/labels";
 
 export default function EmployeeHomePage() {
   const { user } = useAuth();
@@ -52,7 +53,7 @@ export default function EmployeeHomePage() {
               <span>
                 <Clock3 size={14} /> {featured.estimated_minutes} minutos
               </span>
-              <span>{featured.type}</span>
+              <span>{trainingTypeLabel(featured.type)}</span>
             </div>
             <Link className="button primary" to={`/app/training/${featured.id}`}>
               <Play size={16} fill="currentColor" />{" "}

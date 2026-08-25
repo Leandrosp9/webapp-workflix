@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/PageState";
 import { api } from "../../services/http";
 import type { Dashboard } from "../../types/api";
+import { publicationStatusLabel, trainingTypeLabel } from "../../utils/labels";
 
 export default function AdminDashboardPage() {
   const query = useQuery({
@@ -106,10 +107,12 @@ export default function AdminDashboardPage() {
                 <div>
                   <strong>{training.title}</strong>
                   <small>
-                    {training.type} · {training.estimated_minutes} min
+                    {trainingTypeLabel(training.type)} · {training.estimated_minutes} min
                   </small>
                 </div>
-                <span className={`status-${training.status.toLowerCase()}`}>{training.status}</span>
+                <span className={`status-${training.status.toLowerCase()}`}>
+                  {publicationStatusLabel(training.status)}
+                </span>
               </Link>
             ))}
           </div>

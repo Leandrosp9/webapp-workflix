@@ -96,7 +96,10 @@ export default function AdminTrainingEditorPage() {
     queryFn: () => api<Training>(`/trainings/${trainingId}`),
     enabled: !isNew,
   });
-  const usersQuery = useQuery({ queryKey: ["users"], queryFn: () => api<UserSummary[]>("/users") });
+  const usersQuery = useQuery({
+    queryKey: ["users", "employees"],
+    queryFn: () => api<UserSummary[]>("/users?role=EMPLOYEE"),
+  });
   const quizQuery = useQuery({
     queryKey: ["admin-quiz", trainingId],
     queryFn: () => api<QuizDraft>(`/trainings/${trainingId}/quiz`),
