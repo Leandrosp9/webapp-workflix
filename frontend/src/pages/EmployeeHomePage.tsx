@@ -1,8 +1,9 @@
-import { ArrowRight, Clock3, Flame, Play } from "lucide-react";
+import { ArrowRight, Clock3, Flame, Play, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { ErrorState, LoadingState } from "../components/PageState";
+import { LeaderboardCard } from "../components/LeaderboardCard";
 import { TrainingCard } from "../components/TrainingCard";
 import { useAuth } from "../features/auth/AuthProvider";
 import { api } from "../services/http";
@@ -18,6 +19,7 @@ export default function EmployeeHomePage() {
   if (!query.data) return <ErrorState retry={() => void query.refetch()} />;
   const { featured, continue_learning: continuing, required, new: fresh, completed } = query.data;
   const firstName = user?.full_name.split(" ")[0];
+  const motivation = motivationalMessage(continuing, completed.length);
   return (
     <div className="employee-home">
       <section className="welcome-row">
@@ -28,6 +30,16 @@ export default function EmployeeHomePage() {
         <div className="streak-card">
           <Flame size={19} /> <strong>{completed.length}</strong>
           <span>concluídos</span>
+        </div>
+      </section>
+      <section className="motivation-banner">
+        <span className="motivation-icon" aria-hidden="true">
+          <Sparkles />
+        </span>
+        <div>
+          <span className="section-kicker">Impulso do dia</span>
+          <strong>{motivation.title}</strong>
+          <p>{motivation.copy}</p>
         </div>
       </section>
       {featured ? (
@@ -59,12 +71,41 @@ export default function EmployeeHomePage() {
           <p>Novos treinamentos atribuídos aparecerão aqui.</p>
         </section>
       )}
+      <LeaderboardCard />
       <TrainingSection title="Continue aprendendo" items={continuing} />
       <TrainingSection title="Obrigatórios" items={required} />
       <TrainingSection title="Novos para você" items={fresh} />
       {completed.length > 0 && <TrainingSection title="Concluídos" items={completed} />}
     </div>
   );
+}
+
+function motivationalMessage(continuing: EmployeeHome["continue_learning"], completed: number) {
+  const closest = [...continuing].sort(
+    (first, second) => (second.progress_percent ?? 0) - (first.progress_percent ?? 0),
+  )[0];
+  if ((closest?.progress_percent ?? 0) >= 75) {
+    return {
+      title: "Você está na reta final.",
+      copy: `Mais um passo em “${closest.title}” e uma nova conquista entra para o seu histórico.`,
+    };
+  }
+  if (completed >= 3) {
+    return {
+      title: "Consistência transforma conhecimento em resultado.",
+      copy: `Você já concluiu ${completed} treinamentos. Continue construindo esse ritmo.`,
+    };
+  }
+  if (closest) {
+    return {
+      title: "Progresso também se faz em pequenos passos.",
+      copy: `Reserve alguns minutos para continuar “${closest.title}” hoje.`,
+    };
+  }
+  return {
+    title: "Toda conquista começa com curiosidade.",
+    copy: "Escolha um conteúdo do catálogo e dê o próximo passo no seu desenvolvimento.",
+  };
 }
 
 function TrainingSection({ title, items }: { title: string; items: EmployeeHome["new"] }) {

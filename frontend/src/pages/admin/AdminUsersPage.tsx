@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { ErrorState, LoadingState } from "../../components/PageState";
+import { ProfileImagePicker } from "../../components/ProfileImagePicker";
+import { UserAvatar } from "../../components/UserAvatar";
 import { ApiError, api } from "../../services/http";
 import type { User, UserSummary } from "../../types/api";
 
@@ -38,30 +40,89 @@ export default function AdminUsersPage() {
     password: "Workflix@2026",
   });
   const [editForm, setEditForm] = useState({ full_name: "", email: "", cpf: "" });
+  const [createAvatar, setCreateAvatar] = useState<File | null>(null);
+  const [editAvatar, setEditAvatar] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const query = useQuery({ queryKey: ["users"], queryFn: () => api<UserSummary[]>("/users") });
+
+  async function saveAvatar(userId: string, avatar: File) {
+    const form = new FormData();
+    form.append("file", avatar);
+    return api<User>(`/users/${userId}/avatar`, { method: "POST", body: form });
+  }
+
   const create = useMutation({
-    mutationFn: () => api<User>("/users", { method: "POST", body: JSON.stringify(createForm) }),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const user = await api<User>("/users", {
+        method: "POST",
+        body: JSON.stringify(createForm),
+      });
+      if (!createAvatar) return { user, avatarSaved: true };
+      try {
+        return { user: await saveAvatar(user.id, createAvatar), avatarSaved: true };
+      } catch {
+        return { user, avatarSaved: false };
+      }
+    },
+    onSuccess: ({ user, avatarSaved }) => {
       setDialog(null);
       setCreateForm({ full_name: "", email: "", cpf: "", password: "Workflix@2026" });
-      setFeedback("Colaborador adicionado e acesso liberado.");
+      setCreateAvatar(null);
+      setFeedback(
+        avatarSaved
+          ? "Colaborador adicionado e acesso liberado."
+          : "Colaborador adicionado, mas a foto não pôde ser enviada. Edite o cadastro para tentar novamente.",
+      );
       void client.invalidateQueries({ queryKey: ["users"] });
+      void client.invalidateQueries({ queryKey: ["user-avatar", user.id] });
     },
     onError: showMutationError,
   });
   const update = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: UserPatch }) =>
-      api<User>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
-    onSuccess: (user, variables) => {
+    mutationFn: async ({
+      id,
+      payload,
+      avatar,
+    }: {
+      id: string;
+      payload: UserPatch;
+      avatar?: File | null;
+    }) => {
+      const user = await api<User>(`/users/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      if (!avatar) return { user, avatarSaved: true };
+      try {
+        return { user: await saveAvatar(user.id, avatar), avatarSaved: true };
+      } catch {
+        return { user, avatarSaved: false };
+      }
+    },
+    onSuccess: ({ user, avatarSaved }, variables) => {
       setDialog(null);
+      setEditAvatar(null);
       setFeedback(
-        variables.payload.is_active === undefined
-          ? `Dados de ${user.full_name} atualizados.`
-          : `Acesso de ${user.full_name} ${user.is_active ? "ativado" : "inativado"}.`,
+        !avatarSaved
+          ? `Dados de ${user.full_name} atualizados, mas a foto não pôde ser enviada.`
+          : variables.payload.is_active === undefined
+            ? `Dados de ${user.full_name} atualizados.`
+            : `Acesso de ${user.full_name} ${user.is_active ? "ativado" : "inativado"}.`,
       );
       void client.invalidateQueries({ queryKey: ["users"] });
+      void client.invalidateQueries({ queryKey: ["user-avatar", user.id] });
+    },
+    onError: showMutationError,
+  });
+  const removeAvatar = useMutation({
+    mutationFn: (user: UserSummary) => api<void>(`/users/${user.id}/avatar`, { method: "DELETE" }),
+    onSuccess: (_result, user) => {
+      setDialog(null);
+      setEditAvatar(null);
+      setFeedback(`Foto de ${user.full_name} removida.`);
+      void client.invalidateQueries({ queryKey: ["users"] });
+      client.removeQueries({ queryKey: ["user-avatar", user.id] });
     },
     onError: showMutationError,
   });
@@ -73,6 +134,7 @@ export default function AdminUsersPage() {
   function openEdit(user: UserSummary) {
     setError("");
     setFeedback("");
+    setEditAvatar(null);
     setEditForm({ full_name: user.full_name, email: user.email, cpf: formatCpf(user.cpf ?? "") });
     setDialog({ mode: "edit", user });
   }
@@ -100,6 +162,7 @@ export default function AdminUsersPage() {
           onClick={() => {
             setError("");
             setFeedback("");
+            setCreateAvatar(null);
             setDialog({ mode: "create" });
           }}
         >
@@ -140,7 +203,12 @@ export default function AdminUsersPage() {
               <tr key={user.id}>
                 <td>
                   <div className="person-cell">
-                    <span className="avatar">{user.full_name[0]}</span>
+                    <UserAvatar
+                      userId={user.id}
+                      fullName={user.full_name}
+                      hasAvatar={user.has_avatar}
+                      avatarUpdatedAt={user.avatar_updated_at}
+                    />
                     <div>
                       <strong>{user.full_name}</strong>
                       <small>{user.email}</small>
@@ -209,6 +277,11 @@ export default function AdminUsersPage() {
             </div>
             <span className="section-kicker">Novo acesso</span>
             <h2>Adicionar colaborador</h2>
+            <ProfileImagePicker
+              fullName={createForm.full_name}
+              file={createAvatar}
+              onFileChange={setCreateAvatar}
+            />
             <label>
               Nome completo
               <input
@@ -272,7 +345,7 @@ export default function AdminUsersPage() {
             onSubmit={(event) => {
               event.preventDefault();
               setError("");
-              update.mutate({ id: dialog.user.id, payload: editForm });
+              update.mutate({ id: dialog.user.id, payload: editForm, avatar: editAvatar });
             }}
           >
             <div className="modal-icon">
@@ -280,6 +353,14 @@ export default function AdminUsersPage() {
             </div>
             <span className="section-kicker">Editar cadastro</span>
             <h2>Dados do colaborador</h2>
+            <ProfileImagePicker
+              fullName={editForm.full_name}
+              file={editAvatar}
+              onFileChange={setEditAvatar}
+              user={dialog.user}
+              onRemove={() => removeAvatar.mutate(dialog.user)}
+              removing={removeAvatar.isPending}
+            />
             <label>
               Nome completo
               <input

@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ErrorState, LoadingState } from "../../components/PageState";
+import { UserAvatar } from "../../components/UserAvatar";
 import { ApiError, api } from "../../services/http";
 import type {
   AdminAcknowledgementSummary,
@@ -652,7 +653,12 @@ export default function AdminTrainingEditorPage() {
                     )
                   }
                 />
-                <span className="avatar">{user.full_name[0]}</span>
+                <UserAvatar
+                  userId={user.id}
+                  fullName={user.full_name}
+                  hasAvatar={user.has_avatar}
+                  avatarUpdatedAt={user.avatar_updated_at}
+                />
                 <span>
                   <strong>{user.full_name}</strong>
                   <small>{user.email}</small>

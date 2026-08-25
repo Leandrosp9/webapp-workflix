@@ -115,6 +115,11 @@ class User(TimestampMixin, Base):
     __tablename__ = "users"
     __table_args__ = (
         UniqueConstraint("company_id", "cpf", name="user_company_cpf"),
+        CheckConstraint(
+            "(avatar_object_key IS NULL AND avatar_content_type IS NULL) OR "
+            "(avatar_object_key IS NOT NULL AND avatar_content_type IS NOT NULL)",
+            name="valid_user_avatar",
+        ),
         Index("ix_users_company_role", "company_id", "role"),
     )
 
@@ -125,6 +130,9 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(254), nullable=False, unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(140), nullable=False)
     cpf: Mapped[str | None] = mapped_column(String(11))
+    avatar_object_key: Mapped[str | None] = mapped_column(String(500))
+    avatar_content_type: Mapped[str | None] = mapped_column(String(64))
+    avatar_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[Role] = mapped_column(role_enum, nullable=False, default=Role.EMPLOYEE)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -140,6 +148,10 @@ class User(TimestampMixin, Base):
     refresh_tokens: Mapped[list[RefreshToken]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+
+    @property
+    def has_avatar(self) -> bool:
+        return self.avatar_object_key is not None
 
 
 class RefreshToken(Base):
@@ -447,7 +459,6 @@ class DocumentAcknowledgement(Base):
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     user_email: Mapped[str] = mapped_column(String(254), nullable=False)
-    user_cpf: Mapped[str | None] = mapped_column(String(11))
     user_full_name: Mapped[str] = mapped_column(String(140), nullable=False)
     document_title: Mapped[str] = mapped_column(String(180), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)

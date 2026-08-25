@@ -44,7 +44,8 @@ erDiagram
 ### Identity and organization
 
 - `companies`: tenant identity, status, locale, timezone, and feature configuration.
-- `users`: company membership, CPF, secure password hash, active state, and `ADMIN` or `EMPLOYEE` role.
+- `users`: company membership, CPF, private avatar object metadata, secure password hash, active
+  state, and `ADMIN` or `EMPLOYEE` role.
 - `refresh_tokens`: only hashed opaque refresh tokens, expiry, and revocation timestamps.
 
 ### Learning catalog
@@ -84,4 +85,4 @@ Only the newest version of a document is eligible for retrieval, and it must be 
 - Store refresh tokens only as hashes.
 - Use a vector index only after corpus size and query plans justify its parameters.
 
-Migration `20260821_0001` enables PostgreSQL extensions. Migration `20260821_0002` creates the focused MVP schema. Migration `20260821_0003` adds document versions, pages, chunks, and the HNSW vector index. Migration `20260821_0004` adds durable document-processing jobs and claim indexes. Migration `20260822_0005` adds OCR provenance and immutable document acknowledgements. Migration `20260822_0006` adds learning paths, ordered items, path assignments, and certificates. Migration `20260825_0007` adds CPF to employee records and enables independent training certificates.
+Migration `20260821_0001` enables PostgreSQL extensions. Migration `20260821_0002` creates the focused MVP schema. Migration `20260821_0003` adds document versions, pages, chunks, and the HNSW vector index. Migration `20260821_0004` adds durable document-processing jobs and claim indexes. Migration `20260822_0005` adds OCR provenance and immutable document acknowledgements. Migration `20260822_0006` adds learning paths, ordered items, path assignments, and certificates. Migration `20260825_0007` adds CPF to employee records and enables independent training certificates. Migration `20260825_0008` adds private avatar object metadata to employee records.

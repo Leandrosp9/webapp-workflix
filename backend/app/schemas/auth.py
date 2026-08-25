@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -26,6 +27,8 @@ class AuthUser(BaseModel):
     email: EmailStr
     full_name: str
     cpf: str | None
+    has_avatar: bool
+    avatar_updated_at: datetime | None
     role: Role
 
 

@@ -1,3 +1,11 @@
+import asyncio
+from contextlib import suppress
+from datetime import UTC, datetime
+from io import BytesIO
+from uuid import uuid4
+
+from fastapi import UploadFile
+from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -5,11 +13,70 @@ from app.core.errors import AppError
 from app.core.security import hash_password
 from app.models import Role, TrainingAssignment, User, UserProgress
 from app.schemas.users import UserCreate, UserResponse, UserSummary, UserUpdate
+from app.storage import (
+    ObjectNotFoundError,
+    ObjectStorage,
+    StorageError,
+    StoredObject,
+    get_object_storage,
+)
+
+ALLOWED_AVATAR_TYPES = {"image/jpeg", "image/png", "image/webp"}
+ALLOWED_AVATAR_FORMATS = {"JPEG", "PNG", "WEBP"}
+AVATAR_EDGE_PIXELS = 512
+Image.MAX_IMAGE_PIXELS = 20_000_000
 
 
 class UserService:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, storage: ObjectStorage | None = None) -> None:
         self._session = session
+        self._storage = storage or get_object_storage()
+
+    @staticmethod
+    def _normalize_avatar(data: bytes) -> bytes:
+        try:
+            with Image.open(BytesIO(data)) as source:
+                source.verify()
+                image_format = source.format
+            if image_format not in ALLOWED_AVATAR_FORMATS:
+                raise ValueError("Unsupported avatar format.")
+            with Image.open(BytesIO(data)) as source:
+                if source.width > 4096 or source.height > 4096:
+                    raise ValueError("Avatar dimensions are too large.")
+                normalized = ImageOps.exif_transpose(source)
+                normalized.thumbnail(
+                    (AVATAR_EDGE_PIXELS, AVATAR_EDGE_PIXELS),
+                    Image.Resampling.LANCZOS,
+                )
+                if normalized.mode not in {"RGB", "RGBA"}:
+                    normalized = normalized.convert(
+                        "RGBA" if "transparency" in source.info else "RGB"
+                    )
+                output = BytesIO()
+                normalized.save(output, format="WEBP", quality=86, method=6)
+                return output.getvalue()
+        except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError) as exc:
+            raise AppError(
+                code="INVALID_AVATAR",
+                message="The uploaded file is not a valid profile image.",
+                status_code=415,
+            ) from exc
+
+    async def _employee(self, *, company_id, user_id) -> User:
+        user = await self._session.scalar(
+            select(User).where(
+                User.id == user_id,
+                User.company_id == company_id,
+                User.role == Role.EMPLOYEE,
+            )
+        )
+        if user is None:
+            raise AppError(
+                code="USER_NOT_FOUND",
+                message="The employee was not found.",
+                status_code=404,
+            )
+        return user
 
     async def create_employee(self, *, company_id, payload: UserCreate) -> User:
         email = str(payload.email).lower()
@@ -82,19 +149,7 @@ class UserService:
         return result
 
     async def update_employee(self, *, company_id, user_id, payload: UserUpdate) -> User:
-        user = await self._session.scalar(
-            select(User).where(
-                User.id == user_id,
-                User.company_id == company_id,
-                User.role == Role.EMPLOYEE,
-            )
-        )
-        if user is None:
-            raise AppError(
-                code="USER_NOT_FOUND",
-                message="The employee was not found.",
-                status_code=404,
-            )
+        user = await self._employee(company_id=company_id, user_id=user_id)
 
         if payload.email is not None:
             email = str(payload.email).lower()
@@ -130,4 +185,89 @@ class UserService:
 
         await self._session.commit()
         await self._session.refresh(user)
+        return user
+
+    async def upload_avatar(self, *, company_id, user_id, upload: UploadFile) -> User:
+        user = await self._employee(company_id=company_id, user_id=user_id)
+        if upload.content_type not in ALLOWED_AVATAR_TYPES:
+            raise AppError(
+                code="INVALID_AVATAR",
+                message="Only JPG, PNG, and WebP profile images are accepted.",
+                status_code=415,
+            )
+
+        from app.core.config import get_settings
+
+        maximum_bytes = get_settings().max_avatar_size_mb * 1024 * 1024
+        data = await upload.read(maximum_bytes + 1)
+        if len(data) > maximum_bytes:
+            raise AppError(
+                code="FILE_TOO_LARGE",
+                message="The profile image exceeds the upload limit.",
+                status_code=413,
+            )
+        normalized = await asyncio.to_thread(self._normalize_avatar, data)
+        object_key = f"companies/{company_id}/avatars/{user.id}/{uuid4()}.webp"
+        previous_key = user.avatar_object_key
+        try:
+            await self._storage.put(object_key, normalized, content_type="image/webp")
+        except StorageError as exc:
+            raise AppError(
+                code="STORAGE_UNAVAILABLE",
+                message="The profile image service is temporarily unavailable.",
+                status_code=503,
+            ) from exc
+
+        user.avatar_object_key = object_key
+        user.avatar_content_type = "image/webp"
+        user.avatar_updated_at = datetime.now(UTC)
+        try:
+            await self._session.commit()
+            await self._session.refresh(user)
+        except Exception:
+            await self._session.rollback()
+            with suppress(StorageError):
+                await self._storage.delete(object_key)
+            raise
+        if previous_key and previous_key != object_key:
+            with suppress(StorageError):
+                await self._storage.delete(previous_key)
+        return user
+
+    async def get_avatar(self, *, company_id, user_id) -> StoredObject:
+        user = await self._session.scalar(
+            select(User).where(User.id == user_id, User.company_id == company_id)
+        )
+        if user is None or user.avatar_object_key is None:
+            raise AppError(
+                code="AVATAR_NOT_FOUND",
+                message="Profile image not found.",
+                status_code=404,
+            )
+        try:
+            return await self._storage.get(user.avatar_object_key)
+        except ObjectNotFoundError as exc:
+            raise AppError(
+                code="AVATAR_NOT_FOUND",
+                message="Profile image not found.",
+                status_code=404,
+            ) from exc
+        except StorageError as exc:
+            raise AppError(
+                code="STORAGE_UNAVAILABLE",
+                message="The profile image service is temporarily unavailable.",
+                status_code=503,
+            ) from exc
+
+    async def delete_avatar(self, *, company_id, user_id) -> User:
+        user = await self._employee(company_id=company_id, user_id=user_id)
+        object_key = user.avatar_object_key
+        user.avatar_object_key = None
+        user.avatar_content_type = None
+        user.avatar_updated_at = datetime.now(UTC)
+        await self._session.commit()
+        await self._session.refresh(user)
+        if object_key:
+            with suppress(StorageError):
+                await self._storage.delete(object_key)
         return user

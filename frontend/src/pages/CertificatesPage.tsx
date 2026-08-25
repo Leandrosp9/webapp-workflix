@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { ErrorState, LoadingState } from "../components/PageState";
+import { CertificateShare } from "../components/CertificateShare";
 import { ApiError, downloadFile, api } from "../services/http";
 import type { Certificate } from "../types/api";
 
@@ -81,6 +82,11 @@ export default function CertificatesPage() {
                 <Download size={15} />
                 {downloadingId === certificate.id ? "Preparando PDF…" : "Baixar PDF"}
               </button>
+              <CertificateShare
+                code={certificate.code}
+                title={certificate.title}
+                companyName={certificate.company_name}
+              />
             </article>
           ))}
         </div>

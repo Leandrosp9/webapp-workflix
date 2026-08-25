@@ -11,6 +11,7 @@ The browser is untrusted. Authentication, authorization, tenant selection, quiz 
 - Request payloads are validated before application services receive them.
 - Production responses use stable error codes and never include Python tracebacks.
 - Structured logs avoid passwords, tokens, API keys, prompts, and full document text.
+- Configuration validation hides input values so startup errors cannot echo secret material.
 - Each request has a correlation ID for safe diagnostics.
 - Container services run with minimal privileges and expose health checks.
 
@@ -43,6 +44,17 @@ An acknowledgement is accepted only from an assigned employee for the latest pub
 The API never executes PDF work in its process. It commits the immutable version and tenant-scoped processing job in one database transaction. Workers claim with row locks and renewable ownership leases; an expired lease is recoverable by another replica. Bounded attempts, exponential retry, and dead-letter state prevent poison documents from looping forever. Stored job errors are allowlisted codes rather than exception messages or document content.
 
 AI keys can come from the managed secret, generated output is schema-validated, and the RAG endpoint shares the protected AI rate-limit scope. Without `GEMINI_API_KEY`, extraction remains available but indexing and answers are not enabled.
+
+## Identity images and public certificates
+
+Profile uploads accept only JPG, PNG, or WebP within the configured size and dimension limits.
+Pillow verifies the file, applies EXIF orientation, strips metadata, resizes it, and writes a new WebP
+object under the authenticated company prefix. The browser never receives a public object-storage
+URL; same-company authorization is checked before each image response.
+
+Certificate sharing exposes only the high-entropy verification URL. The public response contains
+the immutable proof fields and a masked CPF; full CPF and the PDF remain available only through an
+authorized certificate request.
 
 ## Staging secret handling
 
