@@ -14,6 +14,7 @@ async def add_employee(api: ApiContext, company_id, email: str) -> User:
             company_id=company_id,
             email=email,
             full_name="Demo Employee",
+            cpf="90000000680",
             password_hash=hash_password("StrongDemo@2026"),
             role=Role.EMPLOYEE,
         )

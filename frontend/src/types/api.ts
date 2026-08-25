@@ -62,6 +62,7 @@ export interface User {
   company_id: string;
   email: string;
   full_name: string;
+  cpf: string | null;
   role: Role;
   is_active: boolean;
   created_at: string;
@@ -171,13 +172,17 @@ export interface LearningPath {
 
 export interface Certificate {
   id: string;
-  learning_path_id: string;
+  learning_path_id: string | null;
+  training_id: string | null;
+  certificate_type: "TRAINING" | "LEARNING_PATH";
   user_id: string;
   code: string;
   user_full_name: string;
   user_email: string;
+  user_cpf: string | null;
   company_name: string;
   learning_path_title: string;
+  title: string;
   workload_minutes: number;
   issued_at: string;
 }

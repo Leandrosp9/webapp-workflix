@@ -15,7 +15,17 @@ type UserDialog =
 interface UserPatch {
   full_name?: string;
   email?: string;
+  cpf?: string;
   is_active?: boolean;
+}
+
+function formatCpf(value: string) {
+  return value
+    .replace(/\D/g, "")
+    .slice(0, 11)
+    .replace(/^(\d{3})(\d)/, "$1.$2")
+    .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1-$2");
 }
 
 export default function AdminUsersPage() {
@@ -24,9 +34,10 @@ export default function AdminUsersPage() {
   const [createForm, setCreateForm] = useState({
     full_name: "",
     email: "",
+    cpf: "",
     password: "Workflix@2026",
   });
-  const [editForm, setEditForm] = useState({ full_name: "", email: "" });
+  const [editForm, setEditForm] = useState({ full_name: "", email: "", cpf: "" });
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const query = useQuery({ queryKey: ["users"], queryFn: () => api<UserSummary[]>("/users") });
@@ -34,7 +45,7 @@ export default function AdminUsersPage() {
     mutationFn: () => api<User>("/users", { method: "POST", body: JSON.stringify(createForm) }),
     onSuccess: () => {
       setDialog(null);
-      setCreateForm({ full_name: "", email: "", password: "Workflix@2026" });
+      setCreateForm({ full_name: "", email: "", cpf: "", password: "Workflix@2026" });
       setFeedback("Colaborador adicionado e acesso liberado.");
       void client.invalidateQueries({ queryKey: ["users"] });
     },
@@ -62,7 +73,7 @@ export default function AdminUsersPage() {
   function openEdit(user: UserSummary) {
     setError("");
     setFeedback("");
-    setEditForm({ full_name: user.full_name, email: user.email });
+    setEditForm({ full_name: user.full_name, email: user.email, cpf: formatCpf(user.cpf ?? "") });
     setDialog({ mode: "edit", user });
   }
 
@@ -133,6 +144,7 @@ export default function AdminUsersPage() {
                     <div>
                       <strong>{user.full_name}</strong>
                       <small>{user.email}</small>
+                      <small>CPF {user.cpf ? formatCpf(user.cpf) : "não informado"}</small>
                     </div>
                   </div>
                 </td>
@@ -209,6 +221,19 @@ export default function AdminUsersPage() {
               />
             </label>
             <label>
+              CPF
+              <input
+                inputMode="numeric"
+                value={createForm.cpf}
+                placeholder="000.000.000-00"
+                onChange={(event) =>
+                  setCreateForm({ ...createForm, cpf: formatCpf(event.target.value) })
+                }
+                required
+                minLength={14}
+              />
+            </label>
+            <label>
               E-mail corporativo
               <input
                 type="email"
@@ -262,6 +287,19 @@ export default function AdminUsersPage() {
                 onChange={(event) => setEditForm({ ...editForm, full_name: event.target.value })}
                 required
                 minLength={2}
+              />
+            </label>
+            <label>
+              CPF
+              <input
+                inputMode="numeric"
+                value={editForm.cpf}
+                placeholder="000.000.000-00"
+                onChange={(event) =>
+                  setEditForm({ ...editForm, cpf: formatCpf(event.target.value) })
+                }
+                required
+                minLength={14}
               />
             </label>
             <label>

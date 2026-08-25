@@ -246,6 +246,10 @@ class QuizService:
             progress.started_at = progress.started_at or now
             progress.completed_at = progress.completed_at or now
         await self._session.flush()
-        await CertificateService(self._session).issue_eligible(
-            company_id=company_id, user_id=employee_id
+        certificates = CertificateService(self._session)
+        await certificates.issue_training(
+            company_id=company_id,
+            user_id=employee_id,
+            training_id=training_id,
         )
+        await certificates.issue_eligible(company_id=company_id, user_id=employee_id)

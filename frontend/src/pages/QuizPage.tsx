@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, CheckCircle2, RotateCcw, Trophy, XCircle } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -9,6 +9,7 @@ import type { Quiz, QuizResult } from "../types/api";
 
 export default function QuizPage() {
   const { trainingId = "" } = useParams();
+  const queryClient = useQueryClient();
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const query = useQuery({
@@ -26,6 +27,12 @@ export default function QuizPage() {
           })),
         }),
       }),
+    onSuccess: (result) => {
+      if (result.passed) {
+        void queryClient.invalidateQueries({ queryKey: ["employee-home"] });
+        void queryClient.invalidateQueries({ queryKey: ["employee-certificates"] });
+      }
+    },
   });
   const answered = useMemo(() => Object.keys(answers).length, [answers]);
   if (query.isLoading) return <LoadingState label="Preparando avaliação…" />;
@@ -64,8 +71,12 @@ export default function QuizPage() {
               Tentar novamente
             </button>
           )}
-          <Link className="button primary" to="/app">
-            Voltar ao início <ArrowRight size={16} />
+          <Link
+            className="button primary"
+            to={result.passed ? "/app/certificates" : `/app/training/${trainingId}`}
+          >
+            {result.passed ? "Ver certificado" : "Voltar ao treinamento"}
+            <ArrowRight size={16} />
           </Link>
         </div>
       </div>

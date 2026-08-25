@@ -22,7 +22,7 @@ export default function CertificatesPage() {
     try {
       await downloadFile(
         `/certificates/${certificate.id}/pdf`,
-        `workflix-${certificate.learning_path_title}.pdf`,
+        `workflix-${certificate.title}.pdf`,
       );
     } catch (reason) {
       setDownloadError(
@@ -39,7 +39,7 @@ export default function CertificatesPage() {
         <div>
           <span className="section-kicker">Conquistas verificáveis</span>
           <h1>Certificados</h1>
-          <p>Baixe os certificados emitidos ao concluir suas trilhas.</p>
+          <p>Baixe os certificados emitidos ao concluir treinamentos e trilhas.</p>
         </div>
       </div>
       {downloadError && (
@@ -51,7 +51,7 @@ export default function CertificatesPage() {
         <div className="empty-hero">
           <Award />
           <h2>Sua próxima conquista começa agora.</h2>
-          <p>Conclua uma trilha obrigatória para receber o certificado.</p>
+          <p>Conclua um treinamento ou uma trilha para receber o certificado.</p>
         </div>
       ) : (
         <div className="certificate-grid">
@@ -60,8 +60,12 @@ export default function CertificatesPage() {
               <div className="certificate-ribbon">
                 <Award />
               </div>
-              <span className="section-kicker">Certificado de conclusão</span>
-              <h2>{certificate.learning_path_title}</h2>
+              <span className="section-kicker">
+                {certificate.certificate_type === "TRAINING"
+                  ? "Certificado de treinamento"
+                  : "Certificado de trilha"}
+              </span>
+              <h2>{certificate.title}</h2>
               <p>
                 Emitido por {certificate.company_name} em {formatDate(certificate.issued_at)}.
               </p>

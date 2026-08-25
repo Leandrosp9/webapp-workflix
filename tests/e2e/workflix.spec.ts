@@ -2,6 +2,10 @@ import { expect, type Page, test } from "@playwright/test";
 
 const demoPassword = "Workflix@2026";
 const apiBaseUrl = process.env.PLAYWRIGHT_API_BASE_URL ?? "/api/v1";
+const cachedSessions = new Map<
+  string,
+  { accessToken: string; refreshToken: string }
+>();
 
 function apiUrl(path: string) {
   return `${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
@@ -9,9 +13,29 @@ function apiUrl(path: string) {
 
 async function login(page: Page, email: string) {
   await page.goto("/login");
-  await page.getByLabel("E-mail corporativo").fill(email);
-  await page.getByLabel("Senha").fill(demoPassword);
-  await page.getByRole("button", { name: "Entrar na Workflix" }).click();
+  const cached = cachedSessions.get(email);
+  if (cached) {
+    await page.evaluate(({ accessToken, refreshToken }) => {
+      localStorage.setItem("workflix.access", accessToken);
+      localStorage.setItem("workflix.refresh", refreshToken);
+    }, cached);
+    await page.goto(email.startsWith("admin@") ? "/admin" : "/app");
+  } else {
+    await page.getByLabel("E-mail corporativo").fill(email);
+    await page.getByLabel("Senha").fill(demoPassword);
+    await page.getByRole("button", { name: "Entrar na Workflix" }).click();
+    await expect(page).toHaveURL(
+      email.startsWith("admin@") ? /\/admin$/ : /\/app$/,
+      { timeout: 15_000 },
+    );
+    const session = await page.evaluate(() => ({
+      accessToken: localStorage.getItem("workflix.access") ?? "",
+      refreshToken: localStorage.getItem("workflix.refresh") ?? "",
+    }));
+    expect(session.accessToken).not.toBe("");
+    expect(session.refreshToken).not.toBe("");
+    cachedSessions.set(email, session);
+  }
   await expect(page).toHaveURL(
     email.startsWith("admin@") ? /\/admin$/ : /\/app$/,
     { timeout: 15_000 },
@@ -72,12 +96,30 @@ test("colaborador conclui o fluxo de aprendizagem e avaliação", async ({
 
   await expect(page).toHaveURL(/\/app\/training\//);
   await expect(
-    page.getByRole("link", { name: "Fazer avaliação" }),
+    page.getByRole("button", { name: "Avançar para avaliação" }).first(),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Fazer avaliação" }).click();
+  await expect(
+    page.getByRole("link", { name: "Voltar aos treinamentos" }),
+  ).toHaveAttribute("href", "/app/catalog");
+  await page
+    .getByRole("button", { name: "Avançar para avaliação" })
+    .first()
+    .click();
 
-  for (let question = 0; question < 10; question += 1) {
-    await page.locator(".quiz-options button").first().click();
+  await expect(page).toHaveURL(/\/app\/training\/[^/]+\/quiz$/);
+  await page.getByRole("link", { name: "Sair da avaliação" }).click();
+  await expect(
+    page.getByRole("button", { name: "Continuar na avaliação" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Continuar na avaliação" }).click();
+  await expect(page).toHaveURL(/\/app\/training\/[^/]+\/quiz$/);
+
+  const correctAnswers = [
+    "Confirmar o pedido por um canal oficial antes de agir.",
+    "Usar senha única e autenticação multifator.",
+  ];
+  for (const answer of correctAnswers) {
+    await page.getByRole("button", { name: answer }).click();
     const finish = page.getByRole("button", { name: "Finalizar avaliação" });
     if (await finish.isVisible()) {
       await finish.click();
@@ -87,11 +129,11 @@ test("colaborador conclui o fluxo de aprendizagem e avaliação", async ({
   }
 
   await expect(page.getByText("Resultado da avaliação")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Muito bem!" })).toBeVisible();
+  await page.getByRole("link", { name: "Ver certificado" }).click();
+  await expect(page).toHaveURL(/\/app\/certificates$/);
   await expect(
-    page.getByRole("heading", { name: /Muito bem|Vamos tentar mais uma vez/ }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: /Voltar ao início/ }),
+    page.getByText("Certificado de treinamento").first(),
   ).toBeVisible();
 });
 
@@ -203,6 +245,7 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
   if ((await validationEmployee.count()) === 0) {
     await page.getByRole("button", { name: "Novo colaborador" }).click();
     await page.getByLabel("Nome completo").fill("Rafael Mendes");
+    await page.getByLabel("CPF").fill("900.000.009-22");
     await page.getByLabel("E-mail corporativo").fill(validationEmail);
     await page.getByRole("button", { name: "Criar acesso" }).click();
     await expect(
@@ -212,6 +255,10 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
 
   await validationEmployee.getByTitle("Editar colaborador").click();
   await page.getByLabel("Nome completo").fill("Rafael Mendes da Silva");
+  const cpf = page.getByLabel("CPF");
+  if ((await cpf.inputValue()) === "") {
+    await cpf.fill("900.000.009-22");
+  }
   await page.getByRole("button", { name: "Salvar alterações" }).click();
   await expect(
     page.getByText("Dados de Rafael Mendes da Silva atualizados."),
@@ -377,11 +424,16 @@ test("fluxo demo cria conteúdo com IA, publica, atribui e confirma conclusão",
     await login(page, "employee@workflix.demo");
     await page.goto(`/app/training/${trainingId}`);
     await expect(
-      page.getByRole("heading", {
-        name: "Proteção de dados em projetos digitais",
-      }),
+      page
+        .getByRole("heading", {
+          name: "Proteção de dados em projetos digitais",
+        })
+        .first(),
     ).toBeVisible();
-    await page.getByRole("link", { name: "Fazer avaliação" }).click();
+    await page
+      .getByRole("button", { name: "Avançar para avaliação" })
+      .first()
+      .click();
     await page.locator(".quiz-options button").first().click();
     await page.getByRole("button", { name: /Próxima/ }).click();
     await page.locator(".quiz-options button").first().click();
@@ -389,8 +441,14 @@ test("fluxo demo cria conteúdo com IA, publica, atribui e confirma conclusão",
     await expect(
       page.getByRole("heading", { name: "Muito bem!" }),
     ).toBeVisible();
-
-    await page.goto("/app/certificates");
+    await page.getByRole("link", { name: "Ver certificado" }).click();
+    await expect(
+      page
+        .getByRole("heading", {
+          name: "Proteção de dados em projetos digitais",
+        })
+        .first(),
+    ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Privacidade na prática" }),
     ).toBeVisible();

@@ -25,6 +25,7 @@ class AuthUser(BaseModel):
     company_id: UUID
     email: EmailStr
     full_name: str
+    cpf: str | None
     role: Role
 
 

@@ -242,7 +242,8 @@ class ReportService:
             [
                 item.user_full_name,
                 item.user_email,
-                item.learning_path_title,
+                item.certificate_type.value,
+                item.title,
                 item.company_name,
                 item.workload_minutes,
                 item.issued_at.isoformat(),
@@ -254,7 +255,8 @@ class ReportService:
             [
                 "Colaborador",
                 "E-mail",
-                "Trilha",
+                "Tipo",
+                "Treinamento ou trilha",
                 "Empresa",
                 "Carga (minutos)",
                 "Emitido em",

@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.core.security import hash_password
 from app.db.session import SessionFactory, engine
 from app.models import (
+    Certificate,
     Company,
     LearningPath,
     LearningPathAssignment,
@@ -29,12 +30,12 @@ from app.services.certificates import CertificateService
 DEMO_PASSWORD = "Workflix@2026"  # noqa: S105 - intentional local demo credential
 
 PEOPLE = [
-    ("admin@workflix.demo", "Marina Costa", Role.ADMIN),
-    ("employee@workflix.demo", "Lucas Andrade", Role.EMPLOYEE),
-    ("beatriz.souza@workflix.demo", "Beatriz Souza", Role.EMPLOYEE),
-    ("caio.martins@workflix.demo", "Caio Martins", Role.EMPLOYEE),
-    ("daniela.lima@workflix.demo", "Daniela Lima", Role.EMPLOYEE),
-    ("eduardo.rocha@workflix.demo", "Eduardo Rocha", Role.EMPLOYEE),
+    ("admin@workflix.demo", "Marina Costa", Role.ADMIN, None),
+    ("employee@workflix.demo", "Lucas Andrade", Role.EMPLOYEE, "90000000175"),
+    ("beatriz.souza@workflix.demo", "Beatriz Souza", Role.EMPLOYEE, "90000000256"),
+    ("caio.martins@workflix.demo", "Caio Martins", Role.EMPLOYEE, "90000000337"),
+    ("daniela.lima@workflix.demo", "Daniela Lima", Role.EMPLOYEE, "90000000418"),
+    ("eduardo.rocha@workflix.demo", "Eduardo Rocha", Role.EMPLOYEE, "90000000507"),
 ]
 
 TRAININGS = [
@@ -313,13 +314,14 @@ QUIZ_QUESTIONS = {
 
 async def upsert_users(session: AsyncSession, company: Company) -> dict[str, User]:
     result: dict[str, User] = {}
-    for email, full_name, role in PEOPLE:
+    for email, full_name, role, cpf in PEOPLE:
         user = await session.scalar(select(User).where(User.email == email))
         if user is None:
             user = User(
                 company_id=company.id,
                 email=email,
                 full_name=full_name,
+                cpf=cpf,
                 password_hash=hash_password(DEMO_PASSWORD),
                 role=role,
             )
@@ -328,6 +330,7 @@ async def upsert_users(session: AsyncSession, company: Company) -> dict[str, Use
         else:
             user.company_id = company.id
             user.full_name = full_name
+            user.cpf = cpf
             user.password_hash = hash_password(DEMO_PASSWORD)
             user.role = role
             user.is_active = True
@@ -505,6 +508,16 @@ async def seed_session(session: AsyncSession) -> None:
             progress.started_at = started_at
             progress.completed_at = started_at + timedelta(days=2) if percent == 100 else None
     await session.flush()
+    certificate_service = CertificateService(session)
+    for email, values in progress_plan.items():
+        employee = users[email]
+        for training_index, percent in values.items():
+            if percent == 100:
+                await certificate_service.issue_training(
+                    company_id=company.id,
+                    user_id=employee.id,
+                    training_id=trainings[training_index].id,
+                )
     await ensure_learning_path(
         session,
         company=company,
@@ -524,11 +537,23 @@ async def seed_session(session: AsyncSession) -> None:
         employees=[demo_employee],
     )
     await session.flush()
-    await CertificateService(session).issue_eligible(
+    await certificate_service.issue_eligible(
         company_id=company.id,
         user_id=demo_employee.id,
         learning_path_ids=[privacy_path.id],
     )
+    for employee in employees:
+        existing_certificates = (
+            await session.scalars(
+                select(Certificate).where(
+                    Certificate.company_id == company.id,
+                    Certificate.user_id == employee.id,
+                    Certificate.user_cpf.is_(None),
+                )
+            )
+        ).all()
+        for certificate in existing_certificates:
+            certificate.user_cpf = employee.cpf
     await session.commit()
 
 

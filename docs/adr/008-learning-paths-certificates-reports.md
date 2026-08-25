@@ -11,14 +11,19 @@ Workflix needs guided multi-content journeys, completion proof, and management v
 
 Model a learning path as an ordered set of required or optional existing trainings. Published paths freeze their item order and path assignment creates any missing underlying training assignments in the same transaction. Employee availability is sequential for guidance, while the existing assignment remains the authorization source for each training.
 
-When all required items reach 100%, issue one certificate per employee/path. The row snapshots employee, company, path title, workload, server issue time, and a high-entropy verification code. A database uniqueness constraint plus a nested transaction makes repeated evaluation idempotent. Authenticated users download a stateless ReportLab PDF; the verification endpoint discloses only the certificate's public proof fields.
+When a training reaches 100%, issue one certificate per employee/training. When all required path
+items reach 100%, also issue one certificate per employee/path. Each row snapshots employee name
+and CPF, company, content title, workload, server issue time, and a high-entropy verification code.
+Database uniqueness constraints plus nested transactions make repeated evaluation idempotent.
+Authenticated users download a stateless ReportLab PDF; the public verification endpoint masks the
+CPF and discloses only proof fields.
 
 Management analytics and CSV exports are read models over company-scoped assignments, progress, paths, users, and certificates. CSV cells that can be interpreted as spreadsheet formulas are escaped before UTF-8 BOM encoding.
 
 ## Consequences
 
 - Paths reuse existing content, authorization, progress, and quiz workflows.
-- Certificate evidence survives later user or path-name edits because relevant values are snapshotted.
+- Certificate evidence survives later user or content-title edits because relevant values are snapshotted.
 - Report results remain auditable against source rows and consume no AI quota.
 - Published path content cannot currently be versioned; a future curriculum revision should create a new path version instead of mutating issued-certificate history.
 - Sequential locking is a product cue, not a separate authorization boundary, because the same training may be assigned independently.

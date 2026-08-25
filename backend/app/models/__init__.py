@@ -2,6 +2,7 @@
 
 from app.models.domain import (
     Certificate,
+    CertificateType,
     Company,
     Document,
     DocumentAcknowledgement,
@@ -31,6 +32,7 @@ from app.models.domain import (
 
 __all__ = [
     "Certificate",
+    "CertificateType",
     "Company",
     "Document",
     "DocumentAcknowledgement",

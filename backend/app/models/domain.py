@@ -45,6 +45,11 @@ class LearningPathStatus(StrEnum):
     PUBLISHED = "PUBLISHED"
 
 
+class CertificateType(StrEnum):
+    TRAINING = "TRAINING"
+    LEARNING_PATH = "LEARNING_PATH"
+
+
 class DocumentStatus(StrEnum):
     UPLOADED = "UPLOADED"
     EXTRACTING = "EXTRACTING"
@@ -68,6 +73,7 @@ training_status_enum = Enum(TrainingStatus, native_enum=False, length=16, valida
 learning_path_status_enum = Enum(
     LearningPathStatus, native_enum=False, length=16, validate_strings=True
 )
+certificate_type_enum = Enum(CertificateType, native_enum=False, length=16, validate_strings=True)
 document_status_enum = Enum(DocumentStatus, native_enum=False, length=16, validate_strings=True)
 document_job_status_enum = Enum(
     DocumentJobStatus, native_enum=False, length=16, validate_strings=True
@@ -107,7 +113,10 @@ class Company(Base):
 
 class User(TimestampMixin, Base):
     __tablename__ = "users"
-    __table_args__ = (Index("ix_users_company_role", "company_id", "role"),)
+    __table_args__ = (
+        UniqueConstraint("company_id", "cpf", name="user_company_cpf"),
+        Index("ix_users_company_role", "company_id", "role"),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     company_id: Mapped[UUID] = mapped_column(
@@ -115,6 +124,7 @@ class User(TimestampMixin, Base):
     )
     email: Mapped[str] = mapped_column(String(254), nullable=False, unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(140), nullable=False)
+    cpf: Mapped[str | None] = mapped_column(String(11))
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[Role] = mapped_column(role_enum, nullable=False, default=Role.EMPLOYEE)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -437,6 +447,7 @@ class DocumentAcknowledgement(Base):
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     user_email: Mapped[str] = mapped_column(String(254), nullable=False)
+    user_cpf: Mapped[str | None] = mapped_column(String(11))
     user_full_name: Mapped[str] = mapped_column(String(140), nullable=False)
     document_title: Mapped[str] = mapped_column(String(180), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -591,16 +602,29 @@ class Certificate(Base):
     __tablename__ = "certificates"
     __table_args__ = (
         UniqueConstraint("learning_path_id", "user_id", name="certificate_path_user"),
+        UniqueConstraint("training_id", "user_id", name="certificate_training_user"),
         Index("ix_certificates_company_issued", "company_id", "issued_at"),
         CheckConstraint("workload_minutes > 0", name="positive_workload_minutes"),
+        CheckConstraint(
+            "(certificate_type = 'LEARNING_PATH' AND learning_path_id IS NOT NULL "
+            "AND training_id IS NULL) OR "
+            "(certificate_type = 'TRAINING' AND learning_path_id IS NULL)",
+            name="valid_certificate_scope",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     company_id: Mapped[UUID] = mapped_column(
         ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    learning_path_id: Mapped[UUID] = mapped_column(
-        ForeignKey("learning_paths.id", ondelete="RESTRICT"), nullable=False, index=True
+    learning_path_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("learning_paths.id", ondelete="RESTRICT"), index=True
+    )
+    training_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("trainings.id", ondelete="SET NULL"), index=True
+    )
+    certificate_type: Mapped[CertificateType] = mapped_column(
+        certificate_type_enum, nullable=False, default=CertificateType.LEARNING_PATH
     )
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
@@ -608,6 +632,7 @@ class Certificate(Base):
     code: Mapped[str] = mapped_column(String(48), nullable=False, unique=True, index=True)
     user_full_name: Mapped[str] = mapped_column(String(140), nullable=False)
     user_email: Mapped[str] = mapped_column(String(254), nullable=False)
+    user_cpf: Mapped[str | None] = mapped_column(String(11))
     company_name: Mapped[str] = mapped_column(String(160), nullable=False)
     learning_path_title: Mapped[str] = mapped_column(String(180), nullable=False)
     workload_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -615,8 +640,13 @@ class Certificate(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    learning_path: Mapped[LearningPath] = relationship(back_populates="certificates")
+    learning_path: Mapped[LearningPath | None] = relationship(back_populates="certificates")
+    training: Mapped[Training | None] = relationship()
     user: Mapped[User] = relationship()
+
+    @property
+    def title(self) -> str:
+        return self.learning_path_title
 
 
 class Quiz(TimestampMixin, Base):

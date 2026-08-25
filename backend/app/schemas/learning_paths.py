@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.models import LearningPathStatus, TrainingStatus, TrainingType
+from app.models import CertificateType, LearningPathStatus, TrainingStatus, TrainingType
 
 
 class LearningPathCreate(BaseModel):
@@ -71,13 +71,17 @@ class LearningPathResponse(BaseModel):
 
 class CertificateResponse(BaseModel):
     id: UUID
-    learning_path_id: UUID
+    learning_path_id: UUID | None
+    training_id: UUID | None
+    certificate_type: CertificateType
     user_id: UUID
     code: str
     user_full_name: str
     user_email: str
+    user_cpf: str | None
     company_name: str
     learning_path_title: str
+    title: str
     workload_minutes: int
     issued_at: datetime
 
@@ -85,8 +89,11 @@ class CertificateResponse(BaseModel):
 class CertificateVerification(BaseModel):
     valid: bool = True
     code: str
+    certificate_type: CertificateType
     user_full_name: str
+    user_cpf_masked: str | None
     company_name: str
     learning_path_title: str
+    title: str
     workload_minutes: int
     issued_at: datetime
