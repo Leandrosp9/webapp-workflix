@@ -117,6 +117,46 @@ test("colaborador assiste a um vídeo demonstrativo no treinamento", async ({
   ).toHaveAttribute("href", "https://www.youtube.com/watch?v=jVuQjczLvRI");
 });
 
+test("colaborador retoma o treinamento na última posição de leitura", async ({
+  page,
+}) => {
+  await login(page, "employee@workflix.demo");
+  await page.goto("/app/catalog");
+
+  const trainingCard = page
+    .getByRole("link")
+    .filter({ hasText: "Liderança para ambientes híbridos" })
+    .first();
+  await trainingCard.click();
+
+  const trainingId = page.url().split("/").at(-1) ?? "";
+  const resumeStorageKey = `workflix.training.resume.${trainingId}`;
+  await page.locator(".article-content").evaluate((element) =>
+    element.scrollIntoView({
+      block: "center",
+    }),
+  );
+  await expect
+    .poll(() =>
+      page.evaluate((storageKey) => {
+        return Number(window.localStorage.getItem(storageKey) ?? 0);
+      }, resumeStorageKey),
+    )
+    .toBeGreaterThan(0);
+  const savedPosition = await page.evaluate((storageKey) => {
+    return Number(window.localStorage.getItem(storageKey) ?? 0);
+  }, resumeStorageKey);
+
+  await page.goto("/app/catalog");
+  await trainingCard.click();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.getByRole("button", { name: "Continuar de onde parou" }).click();
+
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(savedPosition - 30);
+});
+
 test("administrador consulta indicadores, treinamentos e colaboradores", async ({
   page,
 }) => {

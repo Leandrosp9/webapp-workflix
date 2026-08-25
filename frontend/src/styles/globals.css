@@ -1756,6 +1756,11 @@ label {
   white-space: pre-wrap;
 }
 
+[data-learning-content]:focus {
+  outline: 2px solid rgba(139, 114, 255, 0.5);
+  outline-offset: -2px;
+}
+
 .video-player,
 .pdf-player {
   display: grid;
@@ -1899,6 +1904,38 @@ label {
 .player-sidebar p {
   color: var(--wf-muted);
   font-size: 0.7rem;
+}
+
+.resume-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 13px;
+  padding: 12px 13px;
+  border: 1px solid rgba(139, 114, 255, 0.28);
+  border-radius: 9px;
+  color: #c9c3ff;
+  background: rgba(139, 114, 255, 0.08);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.68rem;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.resume-button:hover {
+  border-color: rgba(139, 114, 255, 0.55);
+  background: rgba(139, 114, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+.resume-button:focus-visible {
+  outline: 2px solid #9c89ff;
+  outline-offset: 2px;
 }
 
 .player-sidebar .button {

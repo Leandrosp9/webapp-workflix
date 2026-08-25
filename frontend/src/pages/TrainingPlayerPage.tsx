@@ -10,7 +10,7 @@ import {
   Send,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { ErrorState, LoadingState } from "../components/PageState";
@@ -51,6 +51,7 @@ function youtubeEmbedUrl(videoUrl: string | null) {
 export default function TrainingPlayerPage() {
   const { trainingId = "" } = useParams();
   const queryClient = useQueryClient();
+  const contentRootRef = useRef<HTMLElement>(null);
   const [question, setQuestion] = useState("");
   const [ragError, setRagError] = useState("");
   const [downloadError, setDownloadError] = useState("");
@@ -113,6 +114,21 @@ export default function TrainingPlayerPage() {
       ),
   });
 
+  useEffect(() => {
+    const resumeStorageKey = `workflix.training.resume.${trainingId}`;
+    const rememberPosition = () => {
+      const content = contentRootRef.current?.querySelector<HTMLElement>("[data-learning-content]");
+      if (!content) return;
+      const contentTop = content.getBoundingClientRect().top + window.scrollY;
+      if (window.scrollY + 160 >= contentTop) {
+        window.localStorage.setItem(resumeStorageKey, String(Math.round(window.scrollY)));
+      }
+    };
+
+    window.addEventListener("scroll", rememberPosition, { passive: true });
+    return () => window.removeEventListener("scroll", rememberPosition);
+  }, [trainingId]);
+
   async function handlePdfDownload() {
     setDownloadError("");
     setDownloadingPdf(true);
@@ -127,6 +143,26 @@ export default function TrainingPlayerPage() {
     }
   }
 
+  function handleResume() {
+    const content = contentRootRef.current?.querySelector<HTMLElement>("[data-learning-content]");
+    content?.focus({ preventScroll: true });
+    const fallbackPosition = content
+      ? content.getBoundingClientRect().top + window.scrollY - 88
+      : 0;
+    const savedPosition = Number.parseInt(
+      window.localStorage.getItem(`workflix.training.resume.${trainingId}`) ?? "",
+      10,
+    );
+    const requestedPosition =
+      Number.isFinite(savedPosition) && savedPosition > 0 ? savedPosition : fallbackPosition;
+    const maximumPosition = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+
+    window.scrollTo({
+      top: Math.max(0, Math.min(requestedPosition, maximumPosition)),
+      behavior: "smooth",
+    });
+  }
+
   if (query.isLoading) return <LoadingState label="Abrindo treinamento…" />;
   if (!query.data) return <ErrorState retry={() => void query.refetch()} />;
   const training = query.data;
@@ -139,7 +175,7 @@ export default function TrainingPlayerPage() {
         <ArrowLeft size={16} /> Voltar para início
       </Link>
       <div className="player-layout">
-        <article className="player-content">
+        <article ref={contentRootRef} className="player-content">
           <div className="player-heading">
             <span className={`type-chip type-${training.type.toLowerCase()}`}>{training.type}</span>
             <h1>{training.title}</h1>
@@ -152,7 +188,11 @@ export default function TrainingPlayerPage() {
             </div>
           </div>
           {training.type === "VIDEO" && (
-            <div className={`video-player${videoEmbed ? " has-embed" : ""}`}>
+            <div
+              className={`video-player${videoEmbed ? " has-embed" : ""}`}
+              data-learning-content
+              tabIndex={-1}
+            >
               {videoEmbed ? (
                 <>
                   <div className="video-embed">
@@ -192,7 +232,7 @@ export default function TrainingPlayerPage() {
           )}
           {training.type === "PDF" && training.has_pdf && (
             <>
-              <div className="pdf-player">
+              <div className="pdf-player" data-learning-content tabIndex={-1}>
                 <FileText size={46} />
                 <h2>Material em PDF</h2>
                 <p>O documento é servido com autorização e não possui URL pública.</p>
@@ -308,7 +348,11 @@ export default function TrainingPlayerPage() {
               </section>
             </>
           )}
-          {training.content && <div className="article-content">{training.content}</div>}
+          {training.content && (
+            <div className="article-content" data-learning-content tabIndex={-1}>
+              {training.content}
+            </div>
+          )}
         </article>
         <aside className="player-sidebar">
           <span className="section-kicker">Seu progresso</span>
@@ -316,7 +360,16 @@ export default function TrainingPlayerPage() {
           <div className="large-progress">
             <span style={{ width: `${percent}%` }} />
           </div>
-          <p>{percent === 100 ? "Treinamento concluído." : "Continue de onde parou."}</p>
+          {percent === 100 ? (
+            <p>Treinamento concluído.</p>
+          ) : (
+            <>
+              <p>Seu avanço fica salvo neste dispositivo.</p>
+              <button className="resume-button" type="button" onClick={handleResume}>
+                Continuar de onde parou <ArrowRight size={14} />
+              </button>
+            </>
+          )}
           {training.has_quiz ? (
             <Link className="button primary" to={`/app/training/${training.id}/quiz`}>
               Fazer avaliação <ArrowRight size={16} />
