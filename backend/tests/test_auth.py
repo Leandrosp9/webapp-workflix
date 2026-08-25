@@ -1,6 +1,9 @@
 import asyncio
+from io import BytesIO
 
+from app.core.config import get_settings
 from app.models import Role
+from PIL import Image
 
 from conftest import ApiContext, create_company_user, login
 
@@ -180,4 +183,81 @@ def test_admin_edits_and_deactivates_own_company_employee(api: ApiContext) -> No
             },
         ).status_code
         == 401
+    )
+
+
+def test_admin_manages_private_employee_avatar(api: ApiContext, tmp_path) -> None:
+    get_settings().upload_directory = tmp_path
+    _company, admin = asyncio.run(
+        create_company_user(
+            api.sessions,
+            company_name="Avatar Company",
+            email="admin@avatar.example.com",
+            role=Role.ADMIN,
+        )
+    )
+    _outside_company, outside_admin = asyncio.run(
+        create_company_user(
+            api.sessions,
+            company_name="Outside Avatar",
+            email="admin@outside-avatar.example.com",
+            role=Role.ADMIN,
+        )
+    )
+    admin_headers = {"Authorization": f"Bearer {login(api.client, admin.email)['access_token']}"}
+    created = api.client.post(
+        "/api/v1/users",
+        headers=admin_headers,
+        json={
+            "email": "employee@avatar.example.com",
+            "full_name": "Camila Ferreira",
+            "cpf": "90000001066",
+            "password": "StrongEmployee@2026",
+        },
+    )
+    assert created.status_code == 201, created.text
+    user_id = created.json()["id"]
+
+    invalid = api.client.post(
+        f"/api/v1/users/{user_id}/avatar",
+        headers=admin_headers,
+        files={"file": ("avatar.png", b"not-an-image", "image/png")},
+    )
+    assert invalid.status_code == 415
+
+    image = Image.new("RGB", (720, 480), color=(31, 121, 255))
+    avatar = BytesIO()
+    image.save(avatar, format="PNG")
+    uploaded = api.client.post(
+        f"/api/v1/users/{user_id}/avatar",
+        headers=admin_headers,
+        files={"file": ("camila.png", avatar.getvalue(), "image/png")},
+    )
+    assert uploaded.status_code == 200, uploaded.text
+    assert uploaded.json()["has_avatar"] is True
+
+    employee_token = login(api.client, "employee@avatar.example.com", "StrongEmployee@2026")[
+        "access_token"
+    ]
+    employee_headers = {"Authorization": f"Bearer {employee_token}"}
+    downloaded = api.client.get(
+        f"/api/v1/users/{user_id}/avatar",
+        headers=employee_headers,
+    )
+    assert downloaded.status_code == 200
+    assert downloaded.headers["content-type"] == "image/webp"
+    assert downloaded.content.startswith(b"RIFF")
+
+    outside_headers = {
+        "Authorization": f"Bearer {login(api.client, outside_admin.email)['access_token']}"
+    }
+    assert (
+        api.client.get(f"/api/v1/users/{user_id}/avatar", headers=outside_headers).status_code
+        == 404
+    )
+    removed = api.client.delete(f"/api/v1/users/{user_id}/avatar", headers=admin_headers)
+    assert removed.status_code == 204
+    assert (
+        api.client.get(f"/api/v1/users/{user_id}/avatar", headers=employee_headers).status_code
+        == 404
     )

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     app_name: str = "Workflix API"
@@ -31,6 +32,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     file_storage_provider: Literal["local", "s3", "r2"] = "local"
     max_upload_size_mb: int = Field(default=25, ge=1, le=250)
+    max_avatar_size_mb: int = Field(default=5, ge=1, le=10)
     upload_directory: Path = Path("uploads")
     s3_bucket: str | None = None
     s3_region: str = "us-east-1"

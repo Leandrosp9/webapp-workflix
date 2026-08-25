@@ -41,6 +41,7 @@ humana.
 - Autenticação JWT segura, refresh tokens rotativos e hash de senhas com Argon2.
 - Usuários, treinamentos, atribuições, progresso, quizzes, tentativas e autorizações isolados por
   empresa.
+- Cadastro de colaboradores com CPF validado e foto de perfil privada, otimizada no envio.
 - Treinamentos nos formatos artigo, vídeo e PDF, com estados de rascunho e publicado.
 - Criação, edição, atribuição, busca e acompanhamento de treinamentos, com avaliações corrigidas
   pelo servidor.
@@ -48,6 +49,10 @@ humana.
   consolidado.
 - Certificados automáticos com dados de identidade imutáveis e códigos públicos de verificação.
 - Download de certificados profissionais em PDF gerados com ReportLab.
+- Compartilhamento seguro de conquistas por WhatsApp e LinkedIn usando a página pública de
+  autenticidade, com CPF mascarado.
+- Ranking interno por conclusões e progresso médio, feedback visual animado e mensagens
+  motivacionais contextuais.
 - Dashboards gerenciais, analytics, acompanhamento de atrasos, horas de aprendizagem e exportações
   CSV seguras.
 - Versionamento privado de PDFs, downloads autorizados, extração, OCR seletivo, registros de ciência
@@ -215,8 +220,8 @@ jornadas Playwright em cada pull request e push para a branch `main`.
 - Prompts de IA, tokens, conteúdo de documentos e secrets são excluídos dos logs estruturados da
   aplicação.
 - Arquivos `.env` são ignorados; os exemplos versionados contêm apenas placeholders.
-- PDFs usam chaves de objetos privadas com prefixo por tenant e downloads protegidos por
-  autorização.
+- PDFs e fotos de perfil usam chaves de objetos privadas com prefixo por tenant e downloads
+  protegidos por autorização.
 - O ambiente de portfólio usa rate limiting com Redis, armazenamento privado Backblaze B2 e um
   grupo de secrets do Northflank; o bootstrap com payload autorizado do AWS Secrets Manager
   continua disponível.

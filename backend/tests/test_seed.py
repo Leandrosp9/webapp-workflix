@@ -38,3 +38,12 @@ def test_demo_seed_is_idempotent_and_credentials_work(api: ApiContext) -> None:
     employee = login(api.client, "employee@workflix.demo", "Workflix@2026")["user"]
     assert employee["role"] == "EMPLOYEE"
     assert employee["cpf"] == "90000000175"
+    tokens = login(api.client, "employee@workflix.demo", "Workflix@2026")
+    leaderboard = api.client.get(
+        "/api/v1/employee/leaderboard",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+    )
+    assert leaderboard.status_code == 200, leaderboard.text
+    assert leaderboard.json()["entries"][0]["full_name"] == "Beatriz Souza"
+    assert leaderboard.json()["current_user"]["full_name"] == "Lucas Andrade"
+    assert leaderboard.json()["current_user"]["rank"] == 5

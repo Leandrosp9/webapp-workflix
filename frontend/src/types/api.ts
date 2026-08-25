@@ -63,6 +63,8 @@ export interface User {
   email: string;
   full_name: string;
   cpf: string | null;
+  has_avatar: boolean;
+  avatar_updated_at: string | null;
   role: Role;
   is_active: boolean;
   created_at: string;
@@ -185,6 +187,35 @@ export interface Certificate {
   title: string;
   workload_minutes: number;
   issued_at: string;
+}
+
+export interface CertificateVerification {
+  valid: boolean;
+  code: string;
+  certificate_type: "TRAINING" | "LEARNING_PATH";
+  user_full_name: string;
+  user_cpf_masked: string | null;
+  company_name: string;
+  learning_path_title: string;
+  title: string;
+  workload_minutes: number;
+  issued_at: string;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  user_id: string;
+  full_name: string;
+  completed_trainings: number;
+  average_progress: number;
+  has_avatar: boolean;
+  avatar_updated_at: string | null;
+  is_current_user: boolean;
+}
+
+export interface Leaderboard {
+  entries: LeaderboardEntry[];
+  current_user: LeaderboardEntry;
 }
 
 export interface ManagerAnalytics {

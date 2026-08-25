@@ -33,7 +33,9 @@ flowchart LR
 - `ai`: provider-neutral generation, structured output, fallback, and usage observation.
 - `rag`: extraction, chunking, embedding, indexing, retrieval, and grounded answer orchestration.
 - `storage`: provider-neutral document persistence.
-- `services/learning_paths`, `services/certificates`, and `services/reports`: ordered learning workflows, immutable completion evidence/PDF rendering, and read-only management projections.
+- `services/learning_paths`, `services/certificates`, `services/engagement`, and `services/reports`:
+  ordered learning workflows, immutable completion evidence/PDF rendering, tenant-scoped ranking,
+  and read-only management projections.
 
 Routers do not contain persistence or business rules. Application services coordinate domain rules and transactions. Repositories encapsulate reusable persistence queries where they improve clarity.
 
@@ -64,3 +66,8 @@ The local topology separates the static frontend, FastAPI API, document worker, 
 Employee acknowledgements are synchronous domain transactions, not worker jobs. The service authorizes the current assignment, locks and verifies the latest document version, and inserts an idempotent evidence snapshot. A newer version never mutates earlier evidence; it creates a new pending acknowledgement state.
 
 Learning-path assignment is also synchronous: it creates the path assignment and any missing underlying training assignments in one transaction. Progress completion and passing quizzes flush their progress change before issuing an individual training certificate and evaluating eligible published paths. Database uniqueness rules per employee/training and employee/path make certificate issuance idempotent. Each certificate snapshots the employee name and CPF, company, content title, workload, issue time, and verification code. Public verification masks the CPF; full PDF rendering is stateless and happens only after tenant/principal authorization.
+
+Employee photos follow the same private object-storage boundary as documents. The API validates the
+image, strips metadata by normalizing it to WebP, records only the tenant-prefixed object key, and
+serves bytes only to an authenticated principal from the same company. The leaderboard is a
+read-only aggregate over assignments and progress; it never crosses the authenticated tenant.

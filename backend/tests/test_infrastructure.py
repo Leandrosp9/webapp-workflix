@@ -10,6 +10,7 @@ from app.main import app
 from app.storage.base import StorageError
 from app.storage.local import LocalObjectStorage
 from app.storage.s3 import S3ObjectStorage
+from pydantic import ValidationError
 
 from conftest import ApiContext
 
@@ -22,6 +23,16 @@ def test_rag_embedding_dimensions_accept_the_environment_string(
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
 
     assert settings.rag_embedding_dimensions == 768
+
+
+def test_configuration_errors_do_not_echo_secret_inputs() -> None:
+    sensitive_value = "must-not-leak"
+
+    with pytest.raises(ValidationError) as raised:
+        Settings(_env_file=None, jwt_secret=sensitive_value)  # type: ignore[call-arg]
+
+    assert sensitive_value not in str(raised.value)
+    assert "input_value" not in str(raised.value)
 
 
 def test_memory_rate_limiter_enforces_a_fixed_window() -> None:

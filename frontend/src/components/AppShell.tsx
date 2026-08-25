@@ -18,6 +18,7 @@ import { NavLink, useLocation } from "react-router-dom";
 
 import { useAuth } from "../features/auth/AuthProvider";
 import { Brand } from "./Brand";
+import { UserAvatar } from "./UserAvatar";
 
 const employeeNavigation = [
   { to: "/app", label: "Início", icon: Home },
@@ -96,7 +97,14 @@ export function AppShell({ children }: PropsWithChildren) {
             aria-label={`${profileOpen ? "Fechar" : "Abrir"} menu da conta de ${user?.full_name}`}
             onClick={() => setProfileOpen((current) => !current)}
           >
-            <span className="avatar">{user?.full_name.slice(0, 1).toUpperCase()}</span>
+            {user && (
+              <UserAvatar
+                userId={user.id}
+                fullName={user.full_name}
+                hasAvatar={user.has_avatar}
+                avatarUpdatedAt={user.avatar_updated_at}
+              />
+            )}
             <span className="sidebar-user-copy">
               <strong>{user?.full_name}</strong>
               <span>{user?.role === "ADMIN" ? "Administrador" : "Colaborador"}</span>

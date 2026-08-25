@@ -2,6 +2,10 @@ import { expect, type Page, test } from "@playwright/test";
 
 const demoPassword = "Workflix@2026";
 const apiBaseUrl = process.env.PLAYWRIGHT_API_BASE_URL ?? "/api/v1";
+const avatarPng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64",
+);
 const cachedSessions = new Map<
   string,
   { accessToken: string; refreshToken: string }
@@ -89,6 +93,10 @@ test("colaborador conclui o fluxo de aprendizagem e avaliação", async ({
   await expect(
     page.getByRole("heading", { name: /O que vamos aprender hoje/ }),
   ).toBeVisible();
+  await expect(page.getByText("Impulso do dia")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Ranking da equipe" }),
+  ).toBeVisible();
   await page
     .getByRole("link", { name: /Começar agora|Continuar/ })
     .first()
@@ -135,6 +143,28 @@ test("colaborador conclui o fluxo de aprendizagem e avaliação", async ({
   await expect(
     page.getByText("Certificado de treinamento").first(),
   ).toBeVisible();
+  const certificate = page.locator(".certificate-card").first();
+  await expect(
+    certificate.getByRole("link", {
+      name: "Compartilhar certificado no WhatsApp",
+    }),
+  ).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=/);
+  await expect(
+    certificate.getByRole("link", {
+      name: "Compartilhar certificado no LinkedIn",
+    }),
+  ).toHaveAttribute(
+    "href",
+    /^https:\/\/www\.linkedin\.com\/sharing\/share-offsite\/\?url=/,
+  );
+  const certificateCode = (
+    await certificate.locator(".certificate-code").textContent()
+  )?.trim();
+  expect(certificateCode).toBeTruthy();
+
+  await page.goto(`/verify/${encodeURIComponent(certificateCode ?? "")}`);
+  await expect(page.getByText("Certificado autêntico")).toBeVisible();
+  await expect(page.getByText("CPF ***.000.001-**")).toBeVisible();
 });
 
 test("colaborador assiste a um vídeo demonstrativo no treinamento", async ({
@@ -259,9 +289,17 @@ test("administrador consulta indicadores, treinamentos e colaboradores", async (
   if ((await cpf.inputValue()) === "") {
     await cpf.fill("900.000.009-22");
   }
+  await page.getByLabel("Foto do colaborador").setInputFiles({
+    name: "rafael.png",
+    mimeType: "image/png",
+    buffer: avatarPng,
+  });
   await page.getByRole("button", { name: "Salvar alterações" }).click();
   await expect(
     page.getByText("Dados de Rafael Mendes da Silva atualizados."),
+  ).toBeVisible();
+  await expect(
+    validationEmployee.getByAltText("Foto de Rafael Mendes da Silva"),
   ).toBeVisible();
 
   if (

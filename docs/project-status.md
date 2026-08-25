@@ -16,6 +16,8 @@ project for GitHub, LinkedIn, recruiter reviews, and freelancer demonstrations.
   password hashing.
 - Employee home, catalog, navigable player, progress, quizzes, learning paths, and automatically
   issued training/path certificates with CPF and public verification.
+- Employee profile images, animated progress feedback, contextual motivation, tenant-scoped team
+  ranking, and certificate sharing through WhatsApp and LinkedIn.
 - ADMIN dashboard, training authoring, assignments, learning paths, analytics, and CSV/PDF exports.
 - Gemini-assisted training and quiz generation behind a provider interface, with human review
   before persistence.
@@ -48,18 +50,19 @@ The backend health endpoints are
 
 Validated on 2026-08-25:
 
-- Backend: 45 Pytest tests passed.
+- Backend: 47 Pytest tests passed.
 - Python quality: Ruff lint and format checks passed.
 - Frontend: 1 Vitest test passed; ESLint and Prettier checks passed.
-- Production build: Vite passed with 1,746 modules transformed.
+- Production build: Vite passed with 1,751 modules transformed.
 - Local E2E: 9 Playwright journeys passed, including learning completion, automatic certificate,
-  PDF processing, account management, and responsive viewports.
+  profile image management, public certificate verification, team engagement, PDF processing,
+  account management, and responsive viewports.
 - Public PDF flow: upload, Backblaze B2 persistence, durable-worker extraction, status polling, and
   cleanup passed.
 - Gemini: a real training draft was generated successfully with `gemini-3.6-flash`.
 - API: `/health` and `/ready` returned HTTP 200; direct SPA routes returned HTTP 200.
 - Worker: the running replica logged `document_worker_started`.
-- Database: migration-owned startup completed locally at Alembic head `20260825_0007`.
+- Database: migration-owned startup completed locally at Alembic head `20260825_0008`.
 - Local Docker: frontend, backend, worker, and PostgreSQL containers are healthy; liveness and
   readiness return HTTP 200.
 

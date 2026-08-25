@@ -1,4 +1,5 @@
 import asyncio
+import mimetypes
 from pathlib import Path
 
 from app.storage.base import ObjectNotFoundError, StorageError, StoredObject
@@ -37,7 +38,12 @@ class LocalObjectStorage:
             raise ObjectNotFoundError("Object not found.") from exc
         except OSError as exc:
             raise StorageError("Unable to read the object.") from exc
-        return StoredObject(data=data, content_type="application/pdf")
+        content_type = (
+            "image/webp"
+            if path.suffix.lower() == ".webp"
+            else mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        )
+        return StoredObject(data=data, content_type=content_type)
 
     async def delete(self, key: str) -> None:
         path = self._resolve(key)

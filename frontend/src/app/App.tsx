@@ -15,6 +15,7 @@ const QuizPage = lazy(() => import("../pages/QuizPage"));
 const LearningPathsPage = lazy(() => import("../pages/LearningPathsPage"));
 const LearningPathDetailPage = lazy(() => import("../pages/LearningPathDetailPage"));
 const CertificatesPage = lazy(() => import("../pages/CertificatesPage"));
+const VerifyCertificatePage = lazy(() => import("../pages/VerifyCertificatePage"));
 const AdminDashboardPage = lazy(() => import("../pages/admin/AdminDashboardPage"));
 const AdminTrainingsPage = lazy(() => import("../pages/admin/AdminTrainingsPage"));
 const AdminTrainingEditorPage = lazy(() => import("../pages/admin/AdminTrainingEditorPage"));
@@ -25,8 +26,14 @@ const AdminReportsPage = lazy(() => import("../pages/admin/AdminReportsPage"));
 function RouteFallback() {
   return (
     <main className="route-fallback" aria-busy="true" aria-label="Carregando Workflix">
-      <Brand compact />
-      <span>Preparando seu espaço…</span>
+      <div className="route-loading-brand">
+        <span className="route-loading-orbit" aria-hidden="true" />
+        <Brand splash />
+      </div>
+      <strong>Preparando seu espaço…</strong>
+      <span className="route-loading-bar" aria-hidden="true">
+        <i />
+      </span>
     </main>
   );
 }
@@ -54,6 +61,7 @@ function ApplicationRoutes() {
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/verify/:code" element={<VerifyCertificatePage />} />
         <Route element={<Protected role="EMPLOYEE" />}>
           <Route element={<Shell />}>
             <Route path="/app" element={<EmployeeHomePage />} />
